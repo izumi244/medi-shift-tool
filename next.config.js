@@ -1,11 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
+  reactStrictMode: true,
+  swcMinify: true,
+  images: {
+    domains: ['localhost'],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // experimental.appDir は Next.js 14 では不要（デフォルトで有効）
 }
-
-module.exports = nextConfig
