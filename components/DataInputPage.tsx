@@ -39,7 +39,7 @@ export default function DataInputPage() {
       id: 'employee',
       icon: <Users className="w-12 h-12" />,
       title: '従業員管理',
-      description: '基本情報、対応可能配置、職種制限の設定',
+      description: '従業員の基本情報、対応可能配置場所を管理',
       gradientFrom: 'from-blue-500',
       gradientTo: 'to-blue-600'
     },
@@ -47,7 +47,7 @@ export default function DataInputPage() {
       id: 'workplace',
       icon: <MapPin className="w-12 h-12" />,
       title: '配置場所管理',
-      description: 'AM/PM分割、14箇所の配置設定',
+      description: '配置場所を管理',
       gradientFrom: 'from-green-500',
       gradientTo: 'to-green-600'
     },
@@ -55,15 +55,15 @@ export default function DataInputPage() {
       id: 'leave',
       icon: <Calendar className="w-12 h-12" />,
       title: '希望休管理',
-      description: 'カレンダー表示、申請・編集機能',
+      description: 'スタッフの希望休申請・承認管理',
       gradientFrom: 'from-purple-500',
       gradientTo: 'to-purple-600'
     },
     {
       id: 'constraints',
       icon: <Bot className="w-12 h-12" />,
-      title: 'AI制約ガイドライン',
-      description: '自然言語での制約方針設定',
+      title: '制約管理',
+      description: '自然言語でシフト生成の制約条件を設定',
       gradientFrom: 'from-orange-500',
       gradientTo: 'to-orange-600'
     },
@@ -149,10 +149,10 @@ export default function DataInputPage() {
       <div className="border-b-2 border-gray-100 pb-6">
         <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
           <Rocket className="w-8 h-8" />
-          データ入力/シフト生成開始
+          シフト生成
         </h2>
         <p className="text-lg text-gray-600">
-          管理機能へのアクセスとシフト生成の起点となる画面
+          管理機能へのアクセスとシフト生成
         </p>
       </div>
 

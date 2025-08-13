@@ -230,7 +230,7 @@ export default function LeavePage() {
           希望休管理
         </h2>
         <p className="text-lg text-gray-600">
-          スタッフの希望休申請・承認管理（ベースツールと同じ機能）
+          スタッフの希望休申請・承認管理
         </p>
       </div>
 

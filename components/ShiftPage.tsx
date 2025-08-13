@@ -39,16 +39,16 @@ const ShiftPage: React.FC = () => {
   // サンプルシフトデータ
   const [shiftData] = useState<ShiftData>({
     '1': {
-      1: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番 8:30-17:30' },
-      2: { am: '処置(採血)', pm: 'CF中', timeInfo: '遅番 9:30-18:30' },
-      3: { pm: 'デスク', timeInfo: '午後のみ 13:00-18:30' },
+      1: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番' },
+      2: { am: '処置(採血)', pm: 'CF中', timeInfo: '遅番' },
+      3: { pm: 'デスク', timeInfo: '午後のみ' },
       4: { timeInfo: '休み', isHoliday: true },
-      5: { am: 'エコー', pm: 'CF外', timeInfo: '早番 8:30-17:30' },
-      6: { am: '処置(予約)', pm: 'CF洗浄', timeInfo: '早番 8:30-17:30' },
-      7: { pm: '健診翌日準備', timeInfo: '健診のみ 9:00-16:30', isClinicOnly: true },
-      8: { am: 'CF中', pm: 'エコー', timeInfo: '遅番 9:30-18:30' },
+      5: { am: 'エコー', pm: 'CF外', timeInfo: '早番' },
+      6: { am: '処置(予約)', pm: 'CF洗浄', timeInfo: '早番' },
+      7: { pm: '健診翌日準備', timeInfo: '健診のみ', isClinicOnly: true },
+      8: { am: 'CF中', pm: 'エコー', timeInfo: '遅番' },
       15: { timeInfo: '有休', isHoliday: true },
-      31: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番 8:30-17:30' }
+      31: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番' }
     },
     '2': {
       1: { am: 'デスク', timeInfo: '9:00-15:00' },
@@ -63,16 +63,16 @@ const ShiftPage: React.FC = () => {
       31: { pm: 'デスク', timeInfo: '13:00-18:00' }
     },
     '3': {
-      1: { am: '処置', pm: '処置', timeInfo: '早番 8:30-17:30' },
-      2: { am: 'CF洗浄', pm: '健診翌日準備', timeInfo: '早番 8:30-17:30' },
+      1: { am: '処置', pm: '処置', timeInfo: '早番' },
+      2: { am: 'CF洗浄', pm: '健診翌日準備', timeInfo: '早番' },
       3: { timeInfo: '休み', isHoliday: true },
-      4: { am: 'D(デスク等)', pm: 'エコー', timeInfo: '早番 8:30-17:30' },
-      5: { am: '補助、案内', pm: 'CF片付け', timeInfo: '遅番 9:30-18:30' },
-      6: { am: '処置', pm: '処置', timeInfo: '早番 8:30-17:30' },
-      7: { am: 'エコー', pm: 'CF洗浄', timeInfo: '健診のみ 9:00-16:30', isClinicOnly: true },
-      8: { am: 'D(デスク等)', pm: '健診翌日準備', timeInfo: '早番 8:30-17:30' },
+      4: { am: 'D(デスク等)', pm: 'エコー', timeInfo: '早番' },
+      5: { am: '補助、案内', pm: 'CF片付け', timeInfo: '遅番' },
+      6: { am: '処置', pm: '処置', timeInfo: '早番' },
+      7: { am: 'エコー', pm: 'CF洗浄', timeInfo: '健診のみ', isClinicOnly: true },
+      8: { am: 'D(デスク等)', pm: '健診翌日準備', timeInfo: '早番' },
       25: { timeInfo: '有休', isHoliday: true },
-      31: { am: '補助、案内', pm: 'エコー', timeInfo: '早番 8:30-17:30' }
+      31: { am: '補助、案内', pm: 'エコー', timeInfo: '早番' }
     }
   });
 
@@ -111,36 +111,53 @@ const ShiftPage: React.FC = () => {
     const shift = shiftData[employee.id]?.[day];
     if (!shift) {
       return (
-        <td key={day} className="border-r border-gray-200 h-10 p-0.5 align-top text-xs">
+        <td key={day} className="border-r border-gray-200 h-20 p-0.5 align-top">
           <div className="h-full flex flex-col"></div>
         </td>
       );
     }
 
-    let cellClass = "border-r border-gray-200 h-10 p-0.5 align-top text-xs ";
+    let cellClass = "border-r border-gray-200 h-20 p-0.5 align-top ";
     if (shift.isHoliday) {
       cellClass += "bg-pink-100 ";
     } else if (shift.isClinicOnly) {
       cellClass += "bg-green-100 ";
     }
 
+    // 配置情報の文字数に応じて文字サイズを段階的に調整（極限まで小さく）
+    const cellContent = (shift.am || '') + (shift.am && shift.pm ? '/' : '') + (shift.pm || '');
+    const textLength = cellContent.length;
+    let workplaceFontSize = '';
+    
+    if (textLength > 12) {
+      workplaceFontSize = 'transform scale-50 origin-center leading-none';
+    } else if (textLength > 8) {
+      workplaceFontSize = 'transform scale-75 origin-center leading-none';
+    } else {
+      workplaceFontSize = 'text-xs leading-none';
+    }
+
     return (
       <td key={day} className={cellClass}>
-        <div className="h-full flex flex-col text-xs leading-tight">
-          <div className="flex-1">
+        <div className="h-full flex flex-col">
+          {/* 上段：配置情報 - 高さ統一 */}
+          <div className="h-10 flex items-center justify-center px-0.5">
             {(shift.am || shift.pm) && (
-              <div className="text-gray-800 font-medium text-xs mb-0.5 truncate">
-                {shift.am || ''}{shift.am && shift.pm ? '/' : ''}{shift.pm || ''}
+              <div className={`text-gray-800 font-medium text-xs ${workplaceFontSize} text-center break-words`}>
+                {cellContent}
               </div>
             )}
             {shift.isHoliday && (
-              <div className="text-center text-red-600 font-medium text-xs mt-1">
+              <div className="text-center text-red-600 font-medium text-xs transform scale-75 origin-center">
                 休み
               </div>
             )}
           </div>
-          <div className="text-gray-600 text-xs border-t border-gray-200 pt-0.5 text-center leading-none truncate">
-            {shift.timeInfo}
+          {/* 下段：時間情報 - 高さ統一 */}
+          <div className="h-10 flex items-center justify-center border-t border-gray-200 px-0.5">
+            <div className="text-gray-600 text-xs text-center break-words transform scale-75 origin-center leading-none">
+              {shift.timeInfo}
+            </div>
           </div>
         </div>
       </td>
@@ -148,34 +165,34 @@ const ShiftPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1">
       <div className="w-full mx-auto">
         {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-3 bg-white p-2 rounded-lg shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-2 bg-white p-1 rounded shadow-sm">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => changeMonth('prev')}
-              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-sm hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors"
             >
               <ChevronLeft className="w-3 h-3" />
               前月
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">
+            <h1 className="text-sm font-semibold text-gray-800">
               {monthName}
             </h1>
             <button
               onClick={() => changeMonth('next')}
-              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-sm hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors"
             >
               次月
               <ChevronRight className="w-3 h-3" />
             </button>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setEditMode(!editMode)}
-              className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-colors ${
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
                 editMode
                   ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                   : 'bg-emerald-500 text-white hover:bg-emerald-600'
@@ -184,11 +201,11 @@ const ShiftPage: React.FC = () => {
               <Edit3 className="w-3 h-3" />
               編集モード
             </button>
-            <button className="flex items-center gap-1 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors">
+            <button className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
               <Download className="w-3 h-3" />
               PDF出力
             </button>
-            <button className="flex items-center gap-1 px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600 transition-colors">
+            <button className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors">
               <RefreshCw className="w-3 h-3" />
               再生成
             </button>
@@ -196,23 +213,23 @@ const ShiftPage: React.FC = () => {
         </div>
 
         {/* シフト表 */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded shadow-sm overflow-hidden">
           <div className="w-full">
             <table className="w-full border-collapse table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="border-r border-gray-200 p-1 text-center font-medium text-gray-700 w-12 text-xs">
+                  <th className="border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 w-8 text-xs">
                     従業員
                   </th>
                   {days.map(({ day, dayOfWeek, isWednesday }) => (
                     <th
                       key={day}
-                      className={`border-r border-gray-200 p-1 text-center font-medium text-gray-700 text-xs w-auto ${
+                      className={`border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 text-xs w-auto ${
                         isWednesday ? 'bg-yellow-100' : ''
                       }`}
-                      style={{ width: `${(100 - 8) / daysInMonth}%` }}
+                      style={{ width: `${(100 - 6) / daysInMonth}%` }}
                     >
-                      <div>{day}</div>
+                      <div className="text-xs">{day}</div>
                       <div className="text-xs">({dayOfWeek})</div>
                     </th>
                   ))}
@@ -221,9 +238,9 @@ const ShiftPage: React.FC = () => {
               <tbody>
                 {employees.map((employee) => (
                   <tr key={employee.id} className="border-b border-gray-200">
-                    <td className="border-r border-gray-200 p-0.5 text-center w-12 bg-gray-50">
-                      <div className="text-xs font-medium text-gray-800 transform -rotate-12 whitespace-nowrap">
-                        {employee.name.slice(0, 5)}
+                    <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
+                      <div className="text-xs font-medium text-gray-800 text-center">
+                        {employee.name.slice(0, 4)}
                       </div>
                     </td>
                     {days.map(({ day }) => renderShiftCell(employee, day))}
@@ -235,18 +252,18 @@ const ShiftPage: React.FC = () => {
         </div>
 
         {/* 凡例 */}
-        <div className="mt-2 flex items-center gap-4 bg-gray-50 p-2 rounded-lg">
+        <div className="mt-1 flex items-center gap-2 bg-gray-50 p-1 rounded">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
+            <div className="w-2 h-2 bg-white border border-gray-300 rounded"></div>
             <span className="text-xs text-gray-700">通常勤務</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-pink-100 border border-gray-300 rounded"></div>
+            <div className="w-2 h-2 bg-pink-100 border border-gray-300 rounded"></div>
             <span className="text-xs text-gray-700">休み</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-green-100 border border-gray-300 rounded"></div>
-            <span className="text-xs text-gray-700">健診棟のみ（クリニック休診日）</span>
+            <div className="w-2 h-2 bg-green-100 border border-gray-300 rounded"></div>
+            <span className="text-xs text-gray-700">健診棟のみ</span>
           </div>
         </div>
       </div>

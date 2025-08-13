@@ -79,38 +79,38 @@ export default function MainLayout({ children }: LayoutProps) {
     {
       id: 'dataInput',
       icon: <Rocket className="w-5 h-5" />,
-      title: 'データ入力/シフト生成開始',
-      description: '管理機能カード、AI生成開始'
+      title: 'シフト生成',
+      description: ''
     },
     {
       id: 'employee',
       icon: <Users className="w-5 h-5" />,
       title: '従業員管理',
-      description: '基本情報、対応可能配置'
+      description: ''
     },
     {
       id: 'workplace',
       icon: <MapPin className="w-5 h-5" />,
       title: '配置場所管理',
-      description: 'AM/PM分割、14箇所設定'
+      description: ''
     },
     {
       id: 'leave',
       icon: <Calendar className="w-5 h-5" />,
       title: '希望休管理',
-      description: 'カレンダー/リスト表示'
+      description: ''
     },
     {
       id: 'constraints',
       icon: <Bot className="w-5 h-5" />,
-      title: 'AI制約ガイドライン',
-      description: '自然言語での制約設定'
+      title: '制約管理',
+      description: ''
     },
     {
       id: 'shift',
       icon: <ClipboardList className="w-5 h-5" />,
       title: 'シフト表示',
-      description: '【AM】/【PM】表示、編集'
+      description: ''
     }
   ]
 
@@ -123,11 +123,11 @@ export default function MainLayout({ children }: LayoutProps) {
 
   // プログレスステップ
   const progressSteps = [
-    { id: 'dataInput', label: 'データ入力' },
     { id: 'employee', label: '従業員管理' },
-    { id: 'constraints', label: '制約設定' },
-    { id: 'shift', label: 'AI生成' },
-    { id: 'shift', label: 'シフト確認' }
+    { id: 'workplace', label: '配置場所管理' },
+    { id: 'leave', label: '希望休管理' },
+    { id: 'constraints', label: '制約管理' },
+    { id: 'shift', label: 'シフト表示' }
   ]
 
   const toggleSidebar = () => {
@@ -156,7 +156,7 @@ export default function MainLayout({ children }: LayoutProps) {
       <div className="flex min-h-screen">
         {/* サイドバー */}
         <div className={`bg-white shadow-xl transition-all duration-300 ease-in-out flex flex-col ${
-          isCollapsed ? 'w-20' : 'w-80'
+          isCollapsed ? 'w-20' : 'w-64'
         } rounded-r-3xl`}>
           
           {/* ユーザー情報エリア */}

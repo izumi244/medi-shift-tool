@@ -234,10 +234,10 @@ export default function ConstraintsPage() {
       <div className="border-b-2 border-gray-100 pb-6">
         <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
           <Bot className="w-8 h-8" />
-          AI制約ガイドライン
+          制約管理
         </h2>
         <p className="text-lg text-gray-600">
-          自然言語でシフト生成の制約条件を設定（ルールベースから脱却）
+          自然言語でシフト生成の制約条件を設定
         </p>
       </div>
 

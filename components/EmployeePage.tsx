@@ -215,7 +215,7 @@ export default function EmployeePage() {
           従業員管理
         </h2>
         <p className="text-lg text-gray-600">
-          従業員の基本情報、対応可能配置、職種制限を管理
+          従業員の基本情報、対応可能配置場所を管理
         </p>
       </div>
 

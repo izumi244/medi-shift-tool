@@ -213,7 +213,7 @@ export default function WorkplacePage() {
           配置場所管理
         </h2>
         <p className="text-lg text-gray-600">
-          14箇所の配置場所をAM/PMで分割管理、各項目に備考を設定
+          配置場所を管理
         </p>
       </div>
 
