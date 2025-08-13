@@ -13,63 +13,144 @@ import {
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Users
 } from 'lucide-react'
-import { Workplace, FacilityType, TimeSlot } from '@/types'
+
+// 更新された型定義
+interface Workplace {
+  id: string
+  name: string
+  facility: 'クリニック棟' | '健診棟'
+  time_slot: 'AM' | 'PM'
+  day_of_week: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+  required_count: number
+  order_index: number
+  remarks?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+type FacilityType = 'クリニック棟' | '健診棟'
+type TimeSlot = 'AM' | 'PM'
+type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 
 export default function WorkplacePage() {
+  // 表のデータを参考にした初期データ
   const [workplaces, setWorkplaces] = useState<Workplace[]>([
-    // クリニック棟 AM
-    { id: '1', name: 'D(デスク等)', facility: 'クリニック棟', time_slot: 'AM', order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '2', name: '処置(採血)', facility: 'クリニック棟', time_slot: 'AM', order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '3', name: '処置(予約)', facility: 'クリニック棟', time_slot: 'AM', order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '4', name: '処置(フリー)', facility: 'クリニック棟', time_slot: 'AM', order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '5', name: 'エコー', facility: 'クリニック棟', time_slot: 'AM', order_index: 5, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    
-    // クリニック棟 PM
-    { id: '6', name: '11時-14時休憩回し', facility: 'クリニック棟', time_slot: 'PM', order_index: 1, remarks: '診療', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '7', name: 'CF(12:30〜)', facility: 'クリニック棟', time_slot: 'PM', order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '8', name: 'CF中(直接介助)', facility: 'クリニック棟', time_slot: 'PM', order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '9', name: 'CF外(外回り)', facility: 'クリニック棟', time_slot: 'PM', order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '10', name: 'CF洗浄', facility: 'クリニック棟', time_slot: 'PM', order_index: 5, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    
-    // 健診棟 AM
-    { id: '11', name: 'D(デスク等)', facility: '健診棟', time_slot: 'AM', order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '12', name: '処置', facility: '健診棟', time_slot: 'AM', order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '13', name: '処置(半日 週3)', facility: '健診棟', time_slot: 'AM', order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '14', name: 'CF中(直接介助)', facility: '健診棟', time_slot: 'AM', order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '15', name: 'CF外(外回り)', facility: '健診棟', time_slot: 'AM', order_index: 5, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '16', name: '補助、案内(W希望制)', facility: '健診棟', time_slot: 'AM', order_index: 6, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '17', name: 'CF洗浄(半日 週3)', facility: '健診棟', time_slot: 'AM', order_index: 7, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    
-    // 健診棟 PM
-    { id: '18', name: 'D(デスク等)', facility: '健診棟', time_slot: 'PM', order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '19', name: '処置', facility: '健診棟', time_slot: 'PM', order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '20', name: '処置', facility: '健診棟', time_slot: 'PM', order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '21', name: '処置', facility: '健診棟', time_slot: 'PM', order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '22', name: '処置', facility: '健診棟', time_slot: 'PM', order_index: 5, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '23', name: 'エコー', facility: '健診棟', time_slot: 'PM', order_index: 6, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '24', name: '健診翌日準備', facility: '健診棟', time_slot: 'PM', order_index: 7, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '25', name: 'CF片付け', facility: '健診棟', time_slot: 'PM', order_index: 8, remarks: '終わり次第処置台流(16時頃)', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
-  ])
+    // 月・火・木・土曜日 AM クリニック棟
+    { id: '1', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '2', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '3', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '4', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 月・火・木・土曜日 AM 健診棟
+    { id: '5', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '6', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '7', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 月・火・木・土曜日 PM クリニック棟
+    { id: '8', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '9', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'monday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 月・火・木・土曜日 PM 健診棟
+    { id: '10', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '11', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
 
+    // 火曜日（月曜日と同じ）
+    { id: '12', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '13', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '14', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '15', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '16', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '17', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '18', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '19', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '20', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '21', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '22', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+
+    // 水曜日 AM 健診棟のみ
+    { id: '23', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'wednesday', required_count: 2, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '24', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'wednesday', required_count: 4, order_index: 2, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 水曜日 PM 健診棟のみ
+    { id: '25', name: '健診G', facility: '健診棟', time_slot: 'PM', day_of_week: 'wednesday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '26', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'wednesday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+
+    // 木曜日（月曜日と同じ）
+    { id: '27', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '28', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '29', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '30', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '31', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '32', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '33', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '34', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '35', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '36', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '37', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+
+    // 金曜日 AM クリニック棟
+    { id: '38', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '39', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '40', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '41', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 金曜日 AM 健診棟
+    { id: '42', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '43', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '44', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 金曜日 PM クリニック棟
+    { id: '45', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '46', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'friday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    // 金曜日 PM 健診棟
+    { id: '47', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '48', name: '健診G', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '49', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 3, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+
+    // 土曜日（月曜日と同じ）
+    { id: '50', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '51', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '52', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '53', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '54', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '55', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '56', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '57', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '58', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '59', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '60', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
+  ])
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkplace, setEditingWorkplace] = useState<Workplace | null>(null)
   const [selectedFacility, setSelectedFacility] = useState<FacilityType>('クリニック棟')
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot>('AM')
+  
+  // 曜日選択の状態を追加
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<DayOfWeek>('monday')
 
-  // フォーム状態
+  // フォーム状態（人数フィールドを追加）
   const [formData, setFormData] = useState({
     name: '',
     facility: 'クリニック棟' as FacilityType,
     time_slot: 'AM' as TimeSlot,
+    day_of_week: 'monday' as DayOfWeek,
+    required_count: 1,
     remarks: ''
   })
 
-  // フィルタリングされた配置場所
-  const getFilteredWorkplaces = (facility: FacilityType, timeSlot: TimeSlot) => {
+  // 曜日の日本語表示
+  const dayOfWeekLabels = {
+    monday: '月曜日',
+    tuesday: '火曜日', 
+    wednesday: '水曜日',
+    thursday: '木曜日',
+    friday: '金曜日',
+    saturday: '土曜日'
+  }
+
+  // フィルタリングされた配置場所（曜日フィルターを追加）
+  const getFilteredWorkplaces = (facility: FacilityType, timeSlot: TimeSlot, dayOfWeek: DayOfWeek) => {
     return workplaces
-      .filter(wp => wp.facility === facility && wp.time_slot === timeSlot && wp.is_active)
+      .filter(wp => wp.facility === facility && wp.time_slot === timeSlot && wp.day_of_week === dayOfWeek && wp.is_active)
       .sort((a, b) => a.order_index - b.order_index)
   }
 
@@ -81,6 +162,8 @@ export default function WorkplacePage() {
         name: workplace.name,
         facility: workplace.facility,
         time_slot: workplace.time_slot,
+        day_of_week: workplace.day_of_week,
+        required_count: workplace.required_count,
         remarks: workplace.remarks || ''
       })
     } else {
@@ -89,6 +172,8 @@ export default function WorkplacePage() {
         name: '',
         facility: facility || selectedFacility,
         time_slot: timeSlot || selectedTimeSlot,
+        day_of_week: selectedDayOfWeek,
+        required_count: 1,
         remarks: ''
       })
     }
@@ -114,7 +199,7 @@ export default function WorkplacePage() {
       ))
     } else {
       // 新規追加
-      const filteredWorkplaces = getFilteredWorkplaces(formData.facility, formData.time_slot)
+      const filteredWorkplaces = getFilteredWorkplaces(formData.facility, formData.time_slot, formData.day_of_week)
       const nextOrderIndex = Math.max(...filteredWorkplaces.map(wp => wp.order_index), 0) + 1
       
       const newWorkplace: Workplace = {
@@ -149,6 +234,7 @@ export default function WorkplacePage() {
       const sameCategoryWorkplaces = prev.filter(wp => 
         wp.facility === workplace.facility && 
         wp.time_slot === workplace.time_slot && 
+        wp.day_of_week === workplace.day_of_week &&
         wp.is_active
       ).sort((a, b) => a.order_index - b.order_index)
 
@@ -189,21 +275,6 @@ export default function WorkplacePage() {
     }
   }
 
-  const timeSlotColors = {
-    'AM': {
-      bg: 'bg-orange-100',
-      border: 'border-orange-300',
-      text: 'text-orange-800',
-      icon: '🌅'
-    },
-    'PM': {
-      bg: 'bg-purple-100',
-      border: 'border-purple-300',
-      text: 'text-purple-800',
-      icon: '🌆'
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* ページヘッダー */}
@@ -213,66 +284,27 @@ export default function WorkplacePage() {
           配置場所管理
         </h2>
         <p className="text-lg text-gray-600">
-          配置場所を管理
+          曜日別・時間帯別の配置場所と必要人数を管理
         </p>
       </div>
 
-      {/* 統計情報 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              🏢
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">クリニック棟</div>
-              <div className="text-xl font-bold text-blue-600">
-                {workplaces.filter(wp => wp.facility === 'クリニック棟' && wp.is_active).length}箇所
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              🔬
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">健診棟</div>
-              <div className="text-xl font-bold text-green-600">
-                {workplaces.filter(wp => wp.facility === '健診棟' && wp.is_active).length}箇所
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              🌅
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">AM配置</div>
-              <div className="text-xl font-bold text-orange-600">
-                {workplaces.filter(wp => wp.time_slot === 'AM' && wp.is_active).length}箇所
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              🌆
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">PM配置</div>
-              <div className="text-xl font-bold text-purple-600">
-                {workplaces.filter(wp => wp.time_slot === 'PM' && wp.is_active).length}箇所
-              </div>
-            </div>
-          </div>
+      {/* 曜日選択タブ */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">📅 曜日選択</h3>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(dayOfWeekLabels).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedDayOfWeek(key as DayOfWeek)}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                selectedDayOfWeek === key
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -302,7 +334,7 @@ export default function WorkplacePage() {
             </div>
 
             <div className="space-y-2">
-              {getFilteredWorkplaces('クリニック棟', 'AM').map((workplace, index) => (
+              {getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).map((workplace, index) => (
                 <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -316,14 +348,20 @@ export default function WorkplacePage() {
                         </button>
                         <button
                           onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('クリニック棟', 'AM').length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'AM').length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                          disabled={index === getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length - 1}
+                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
                           <ArrowDown className="w-3 h-3" />
                         </button>
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900">{workplace.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            <span className="font-semibold">{workplace.required_count}人</span>
+                          </div>
+                        </div>
                         {workplace.remarks && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
@@ -354,13 +392,12 @@ export default function WorkplacePage() {
               ))}
             </div>
 
-            {/* 水曜日休診の注意 */}
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center gap-2 text-red-700 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                <span className="font-medium">※ 水曜日は休診</span>
+            {getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>配置場所が登録されていません</p>
               </div>
-            </div>
+            )}
           </div>
 
           {/* 健診棟 AM */}
@@ -379,7 +416,7 @@ export default function WorkplacePage() {
             </div>
 
             <div className="space-y-2">
-              {getFilteredWorkplaces('健診棟', 'AM').map((workplace, index) => (
+              {getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).map((workplace, index) => (
                 <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -393,14 +430,20 @@ export default function WorkplacePage() {
                         </button>
                         <button
                           onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('健診棟', 'AM').length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'AM').length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                          disabled={index === getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length - 1}
+                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
                           <ArrowDown className="w-3 h-3" />
                         </button>
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900">{workplace.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            <span className="font-semibold">{workplace.required_count}人</span>
+                          </div>
+                        </div>
                         {workplace.remarks && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
@@ -430,6 +473,13 @@ export default function WorkplacePage() {
                 </div>
               ))}
             </div>
+
+            {getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>配置場所が登録されていません</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -457,7 +507,7 @@ export default function WorkplacePage() {
             </div>
 
             <div className="space-y-2">
-              {getFilteredWorkplaces('クリニック棟', 'PM').map((workplace, index) => (
+              {getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).map((workplace, index) => (
                 <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -471,14 +521,20 @@ export default function WorkplacePage() {
                         </button>
                         <button
                           onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('クリニック棟', 'PM').length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'PM').length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                          disabled={index === getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length - 1}
+                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
                           <ArrowDown className="w-3 h-3" />
                         </button>
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900">{workplace.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            <span className="font-semibold">{workplace.required_count}人</span>
+                          </div>
+                        </div>
                         {workplace.remarks && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
@@ -509,13 +565,12 @@ export default function WorkplacePage() {
               ))}
             </div>
 
-            {/* 診療の注意 */}
-            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center gap-2 text-orange-700 text-sm">
-                <CheckCircle2 className="w-4 h-4" />
-                <span className="font-medium">診療</span>
+            {getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>配置場所が登録されていません</p>
               </div>
-            </div>
+            )}
           </div>
 
           {/* 健診棟 PM */}
@@ -534,7 +589,7 @@ export default function WorkplacePage() {
             </div>
 
             <div className="space-y-2">
-              {getFilteredWorkplaces('健診棟', 'PM').map((workplace, index) => (
+              {getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).map((workplace, index) => (
                 <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -548,14 +603,20 @@ export default function WorkplacePage() {
                         </button>
                         <button
                           onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('健診棟', 'PM').length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'PM').length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                          disabled={index === getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length - 1}
+                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
                         >
                           <ArrowDown className="w-3 h-3" />
                         </button>
                       </div>
                       <div className="flex-1">
                         <div className="font-semibold text-gray-900">{workplace.name}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                            <Users className="w-3 h-3" />
+                            <span className="font-semibold">{workplace.required_count}人</span>
+                          </div>
+                        </div>
                         {workplace.remarks && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
@@ -586,13 +647,12 @@ export default function WorkplacePage() {
               ))}
             </div>
 
-            {/* CF片付けの注意 */}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-700 text-sm">
-                <Clock className="w-4 h-4" />
-                <span className="font-medium">CF片付け：終わり次第処置台流(16時頃)</span>
+            {getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>配置場所が登録されていません</p>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -622,7 +682,7 @@ export default function WorkplacePage() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
                   placeholder="例：処置(採血)"
                 />
               </div>
@@ -635,10 +695,10 @@ export default function WorkplacePage() {
                   <select
                     value={formData.facility}
                     onChange={(e) => setFormData(prev => ({ ...prev, facility: e.target.value as FacilityType }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
                   >
-                    <option value="クリニック棟">🏢 クリニック棟</option>
-                    <option value="健診棟">🔬 健診棟</option>
+                    <option value="クリニック棟" className="bg-white text-gray-900 py-2">🏢 クリニック棟</option>
+                    <option value="健診棟" className="bg-white text-gray-900 py-2">🔬 健診棟</option>
                   </select>
                 </div>
 
@@ -649,10 +709,42 @@ export default function WorkplacePage() {
                   <select
                     value={formData.time_slot}
                     onChange={(e) => setFormData(prev => ({ ...prev, time_slot: e.target.value as TimeSlot }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
                   >
-                    <option value="AM">🌅 AM（午前）</option>
-                    <option value="PM">🌆 PM（午後）</option>
+                    <option value="AM" className="bg-white text-gray-900 py-2">🌅 AM（午前）</option>
+                    <option value="PM" className="bg-white text-gray-900 py-2">🌆 PM（午後）</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    曜日 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.day_of_week}
+                    onChange={(e) => setFormData(prev => ({ ...prev, day_of_week: e.target.value as DayOfWeek }))}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
+                  >
+                    {Object.entries(dayOfWeekLabels).map(([key, label]) => (
+                      <option key={key} value={key} className="bg-white text-gray-900 py-2">{label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    必要人数 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.required_count}
+                    onChange={(e) => setFormData(prev => ({ ...prev, required_count: parseInt(e.target.value) }))}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10].map(num => (
+                      <option key={num} value={num} className="bg-white text-gray-900 py-2">{num}人</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -665,8 +757,7 @@ export default function WorkplacePage() {
                   value={formData.remarks}
                   onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
                   rows={3}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors resize-none"
-                  placeholder="例：水曜日は休診、週3回のみ実施など"
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors resize-none bg-white text-gray-900"
                 />
               </div>
 
