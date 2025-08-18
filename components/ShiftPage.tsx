@@ -7,7 +7,6 @@ interface ShiftAssignment {
   am?: string;
   pm?: string;
   timeInfo: string;
-  isHoliday?: boolean;
   isClinicOnly?: boolean;
 }
 
@@ -36,43 +35,34 @@ const ShiftPage: React.FC = () => {
     { id: '3', name: '臨床検査技師A', type: '常勤・臨床検査技師', employmentType: 'full-time', position: 'technician' }
   ];
 
-  // サンプルシフトデータ
+  // ルールに基づいたサンプルシフトデータ（1週間分）
   const [shiftData] = useState<ShiftData>({
-    '1': {
-      1: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番' },
-      2: { am: '処置(採血)', pm: 'CF中', timeInfo: '遅番' },
-      3: { pm: 'デスク', timeInfo: '午後のみ' },
-      4: { timeInfo: '休み', isHoliday: true },
-      5: { am: 'エコー', pm: 'CF外', timeInfo: '早番' },
-      6: { am: '処置(予約)', pm: 'CF洗浄', timeInfo: '早番' },
-      7: { pm: '健診翌日準備', timeInfo: '健診のみ', isClinicOnly: true },
-      8: { am: 'CF中', pm: 'エコー', timeInfo: '遅番' },
-      15: { timeInfo: '有休', isHoliday: true },
-      31: { am: 'デスク', pm: '処置(採血)', timeInfo: '早番' }
+    '1': { // 看護師A（常勤）
+      1: { am: 'D', pm: '処', timeInfo: '早番' }, // 金曜日
+      2: { am: '処', pm: 'CF中', timeInfo: '遅番' }, // 土曜日
+      // 3: 日曜日は完全に休み（データなし）
+      4: { am: 'CF中', pm: '処', timeInfo: '早番' }, // 月曜日
+      5: { am: 'D', pm: 'CF外', timeInfo: '遅番' }, // 火曜日
+      6: { am: '健診G', pm: '健診', timeInfo: '早番', isClinicOnly: true }, // 水曜日：健診棟のみ
+      15: { timeInfo: '有休' }
     },
-    '2': {
-      1: { am: 'デスク', timeInfo: '9:00-15:00' },
-      2: { am: '処置(予約)', timeInfo: '9:00-15:00' },
-      3: { timeInfo: '休み', isHoliday: true },
-      4: { pm: '処置1', timeInfo: '13:00-18:00' },
-      5: { am: '処置(採血)', timeInfo: '9:00-15:00' },
-      6: { pm: 'CF外', timeInfo: '13:00-18:00' },
-      7: { am: 'エコー', timeInfo: '9:00-15:00', isClinicOnly: true },
-      8: { am: '処置(フリー)', timeInfo: '9:00-15:00' },
-      20: { timeInfo: '希望休', isHoliday: true },
-      31: { pm: 'デスク', timeInfo: '13:00-18:00' }
+    '2': { // パート看護師A
+      1: { am: 'D', timeInfo: '9:00-15:00' }, // 金曜日
+      2: { am: '処', timeInfo: '9:00-15:00' }, // 土曜日
+      // 3: 日曜日は完全に休み（データなし）
+      4: { am: 'CF外', timeInfo: '9:00-15:00' }, // 月曜日
+      5: { pm: 'D', timeInfo: '13:00-18:00' }, // 火曜日
+      6: { timeInfo: '休み' }, // 水曜日：クリニック休診のため休み
+      20: { timeInfo: '希望休' }
     },
-    '3': {
-      1: { am: '処置', pm: '処置', timeInfo: '早番' },
-      2: { am: 'CF洗浄', pm: '健診翌日準備', timeInfo: '早番' },
-      3: { timeInfo: '休み', isHoliday: true },
-      4: { am: 'D(デスク等)', pm: 'エコー', timeInfo: '早番' },
-      5: { am: '補助、案内', pm: 'CF片付け', timeInfo: '遅番' },
-      6: { am: '処置', pm: '処置', timeInfo: '早番' },
-      7: { am: 'エコー', pm: 'CF洗浄', timeInfo: '健診のみ', isClinicOnly: true },
-      8: { am: 'D(デスク等)', pm: '健診翌日準備', timeInfo: '早番' },
-      25: { timeInfo: '有休', isHoliday: true },
-      31: { am: '補助、案内', pm: 'エコー', timeInfo: '早番' }
+    '3': { // 臨床検査技師A
+      1: { am: '健診G', pm: '健診', timeInfo: '早番' }, // 金曜日
+      2: { am: 'CF洗浄', pm: '健診G', timeInfo: '早番' }, // 土曜日
+      // 3: 日曜日は完全に休み（データなし）
+      4: { am: '健診G', pm: '健診', timeInfo: '早番' }, // 月曜日
+      5: { am: '健診', pm: 'CF洗浄', timeInfo: '遅番' }, // 火曜日
+      6: { am: 'CF洗浄', pm: '健診G', timeInfo: '遅番', isClinicOnly: true }, // 水曜日：健診棟のみ
+      25: { timeInfo: '有休' }
     }
   });
 
@@ -88,7 +78,12 @@ const ShiftPage: React.FC = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dayOfWeek = date.toLocaleDateString('ja-JP', { weekday: 'short' });
-      days.push({ day, dayOfWeek, isWednesday: dayOfWeek === '水' });
+      days.push({ 
+        day, 
+        dayOfWeek, 
+        isWednesday: dayOfWeek === '水',
+        isSunday: dayOfWeek === '日'
+      });
     }
     return days;
   };
@@ -106,60 +101,78 @@ const ShiftPage: React.FC = () => {
     setCurrentDate(newDate);
   };
 
+  // 文字数に応じた最適なフォントサイズを計算
+  const getOptimalFontSize = (text: string, isWorkplace: boolean = true) => {
+    const length = text.length;
+    
+    if (isWorkplace) {
+      // 配置情報（上段）のサイズ調整
+      if (length >= 10) return 'text-xs transform scale-[0.4] origin-center leading-none whitespace-nowrap';
+      if (length >= 8) return 'text-xs transform scale-[0.5] origin-center leading-none whitespace-nowrap';
+      if (length >= 6) return 'text-xs transform scale-[0.65] origin-center leading-none whitespace-nowrap';
+      if (length >= 4) return 'text-xs transform scale-[0.8] origin-center leading-none whitespace-nowrap';
+      return 'text-xs leading-none whitespace-nowrap';
+    } else {
+      // 時間情報（下段）のサイズ調整
+      if (length >= 12) return 'text-xs transform scale-[0.5] origin-center leading-none whitespace-nowrap';
+      if (length >= 8) return 'text-xs transform scale-[0.65] origin-center leading-none whitespace-nowrap';
+      if (length >= 6) return 'text-xs transform scale-[0.75] origin-center leading-none whitespace-nowrap';
+      return 'text-xs leading-none whitespace-nowrap';
+    }
+  };
+
   // シフトセルをレンダリング
-  const renderShiftCell = (employee: Employee, day: number) => {
+  const renderShiftCell = (employee: Employee, day: number, dayInfo: { isSunday: boolean, isWednesday: boolean }) => {
     const shift = shiftData[employee.id]?.[day];
     if (!shift) {
       return (
-        <td key={day} className="border-r border-gray-200 h-20 p-0.5 align-top">
+        <td key={day} className={`border-r border-gray-200 h-20 p-0.5 align-top ${
+          dayInfo.isSunday ? 'bg-pink-100' :
+          dayInfo.isWednesday ? 'bg-green-100' : ''
+        }`}>
           <div className="h-full flex flex-col"></div>
         </td>
       );
     }
 
     let cellClass = "border-r border-gray-200 h-20 p-0.5 align-top ";
-    if (shift.isHoliday) {
+    if (dayInfo.isSunday) {
       cellClass += "bg-pink-100 ";
-    } else if (shift.isClinicOnly) {
+    } else if (dayInfo.isWednesday) {
       cellClass += "bg-green-100 ";
     }
 
-    // 配置情報の文字数に応じて文字サイズを段階的に調整（極限まで小さく）
+    // 配置情報を結合
     const cellContent = (shift.am || '') + (shift.am && shift.pm ? '/' : '') + (shift.pm || '');
-    const textLength = cellContent.length;
-    let workplaceFontSize = '';
-    
-    if (textLength > 12) {
-      workplaceFontSize = 'transform scale-50 origin-center leading-none';
-    } else if (textLength > 8) {
-      workplaceFontSize = 'transform scale-75 origin-center leading-none';
-    } else {
-      workplaceFontSize = 'text-xs leading-none';
-    }
+    const workplaceFontSize = getOptimalFontSize(cellContent, true);
+    const timeFontSize = getOptimalFontSize(shift.timeInfo, false);
 
     return (
       <td key={day} className={cellClass}>
-        <div className="h-full flex flex-col">
-          {/* 上段：配置情報 - 高さ統一 */}
-          <div className="h-10 flex items-center justify-center px-0.5">
-            {(shift.am || shift.pm) && (
-              <div className={`text-gray-800 font-medium text-xs ${workplaceFontSize} text-center break-words`}>
-                {cellContent}
-              </div>
-            )}
-            {shift.isHoliday && (
-              <div className="text-center text-red-600 font-medium text-xs transform scale-75 origin-center">
-                休み
-              </div>
-            )}
-          </div>
-          {/* 下段：時間情報 - 高さ統一 */}
-          <div className="h-10 flex items-center justify-center border-t border-gray-200 px-0.5">
-            <div className="text-gray-600 text-xs text-center break-words transform scale-75 origin-center leading-none">
-              {shift.timeInfo}
+        {/* 休みの場合：セル全体結合 */}
+        {(!shift.am && !shift.pm && (shift.timeInfo === '休み' || shift.timeInfo === '有休' || shift.timeInfo === '希望休')) ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center text-red-600 font-medium text-sm">
+              休
             </div>
           </div>
-        </div>
+        ) : (
+          /* 通常勤務の場合：上下分割 */
+          <div className="h-full flex flex-col">
+            {/* 上段：配置情報 - 高さ統一 */}
+            <div className="h-10 flex items-center justify-center px-0.5 overflow-hidden">
+              <div className={`text-gray-800 font-medium text-center ${workplaceFontSize}`}>
+                {cellContent}
+              </div>
+            </div>
+            {/* 下段：時間情報 */}
+            <div className="h-10 flex items-center justify-center border-t border-gray-200 px-0.5 overflow-hidden">
+              <div className={`text-gray-600 text-center ${timeFontSize}`}>
+                {shift.timeInfo}
+              </div>
+            </div>
+          </div>
+        )}
       </td>
     );
   };
@@ -219,13 +232,14 @@ const ShiftPage: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 w-8 text-xs">
-                    従業員
+                    {/* 空欄 */}
                   </th>
-                  {days.map(({ day, dayOfWeek, isWednesday }) => (
+                  {days.map(({ day, dayOfWeek, isWednesday, isSunday }) => (
                     <th
                       key={day}
                       className={`border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 text-xs w-auto ${
-                        isWednesday ? 'bg-yellow-100' : ''
+                        isSunday ? 'bg-pink-100' :
+                        isWednesday ? 'bg-green-100' : ''
                       }`}
                       style={{ width: `${(100 - 6) / daysInMonth}%` }}
                     >
@@ -236,6 +250,22 @@ const ShiftPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
+                {/* 備考行 */}
+                <tr className="border-b border-gray-200">
+                  <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
+                    <div className="text-xs font-medium text-gray-800 text-center">
+                      備考
+                    </div>
+                  </td>
+                  {days.map(({ day, isSunday, isWednesday }) => (
+                    <td key={day} className={`border-r border-gray-200 h-10 p-0.5 align-top ${
+                      isSunday ? 'bg-pink-100' :
+                      isWednesday ? 'bg-green-100' : ''
+                    }`}>
+                      {/* 空欄 */}
+                    </td>
+                  ))}
+                </tr>
                 {employees.map((employee) => (
                   <tr key={employee.id} className="border-b border-gray-200">
                     <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
@@ -243,27 +273,11 @@ const ShiftPage: React.FC = () => {
                         {employee.name.slice(0, 4)}
                       </div>
                     </td>
-                    {days.map(({ day }) => renderShiftCell(employee, day))}
+                    {days.map(({ day, isSunday, isWednesday }) => renderShiftCell(employee, day, { isSunday, isWednesday }))}
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* 凡例 */}
-        <div className="mt-1 flex items-center gap-2 bg-gray-50 p-1 rounded">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-white border border-gray-300 rounded"></div>
-            <span className="text-xs text-gray-700">通常勤務</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-pink-100 border border-gray-300 rounded"></div>
-            <span className="text-xs text-gray-700">休み</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-100 border border-gray-300 rounded"></div>
-            <span className="text-xs text-gray-700">健診棟のみ</span>
           </div>
         </div>
       </div>

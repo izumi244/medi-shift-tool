@@ -23,6 +23,7 @@ export interface Employee {
   employment_type: EmploymentType
   job_type: JobType
   assignable_facilities: FacilityType[]
+  assignable_workplaces_by_day?: Record<string, string[]>  // 🔧 曜日別配置可能場所を追加
   available_days: string[]
   phone?: string
   email?: string
