@@ -47,11 +47,28 @@ export default function MainLayout({ children }: LayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageType>('dataInput')
 
+  // ページ遷移ハンドラー
+  const handleNavigate = (pageId: string) => {
+    // カードのIDをPageTypeに変換
+    const pageMap: Record<string, PageType> = {
+      'employee': 'employee',
+      'workplace': 'workplace', 
+      'leave': 'leave',
+      'constraints': 'constraints',
+      'shift': 'shift'
+    }
+    
+    const targetPage = pageMap[pageId]
+    if (targetPage) {
+      setCurrentPage(targetPage)
+    }
+  }
+
   // ページコンポーネントをレンダリング
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'dataInput':
-        return <DataInputPage />
+        return <DataInputPage onNavigate={handleNavigate} />
       case 'employee':
         return <EmployeePage />
       case 'workplace':
@@ -63,7 +80,7 @@ export default function MainLayout({ children }: LayoutProps) {
       case 'shift':
         return <ShiftPage />
       default:
-        return <DataInputPage />
+        return <DataInputPage onNavigate={handleNavigate} />
     }
   }
 
@@ -79,38 +96,38 @@ export default function MainLayout({ children }: LayoutProps) {
     {
       id: 'dataInput',
       icon: <Rocket className="w-5 h-5" />,
-      title: 'シフト生成',
-      description: ''
+      title: 'シフト作成',
+      description: '管理機能カード、AI作成開始'
     },
     {
       id: 'employee',
       icon: <Users className="w-5 h-5" />,
       title: '従業員管理',
-      description: ''
+      description: '基本情報、対応可能配置'
     },
     {
       id: 'workplace',
       icon: <MapPin className="w-5 h-5" />,
       title: '配置場所管理',
-      description: ''
+      description: 'AM/PM分割、14箇所設定'
     },
     {
       id: 'leave',
       icon: <Calendar className="w-5 h-5" />,
       title: '希望休管理',
-      description: ''
+      description: 'カレンダー/リスト表示'
     },
     {
       id: 'constraints',
       icon: <Bot className="w-5 h-5" />,
-      title: '制約管理',
-      description: ''
+      title: 'AI制約条件管理',
+      description: '自然言語での制約設定'
     },
     {
       id: 'shift',
       icon: <ClipboardList className="w-5 h-5" />,
       title: 'シフト表示',
-      description: ''
+      description: '【AM】/【PM】表示、編集'
     }
   ]
 
@@ -121,15 +138,6 @@ export default function MainLayout({ children }: LayoutProps) {
     { icon: <Download className="w-4 h-4" />, title: 'データエクスポート' }
   ]
 
-  // プログレスステップ
-  const progressSteps = [
-    { id: 'employee', label: '従業員管理' },
-    { id: 'workplace', label: '配置場所管理' },
-    { id: 'leave', label: '希望休管理' },
-    { id: 'constraints', label: '制約管理' },
-    { id: 'shift', label: 'シフト表示' }
-  ]
-
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed)
   }
@@ -137,10 +145,6 @@ export default function MainLayout({ children }: LayoutProps) {
   const handlePageChange = (pageId: PageType) => {
     setCurrentPage(pageId)
   }
-
-  // プログレスバーの計算
-  const currentStepIndex = progressSteps.findIndex(step => step.id === currentPage)
-  const progressPercentage = currentStepIndex >= 0 ? (currentStepIndex / (progressSteps.length - 1)) * 100 : 0
 
   // 現在の日付
   const today = new Date()
@@ -152,12 +156,12 @@ export default function MainLayout({ children }: LayoutProps) {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-700">
+    <div className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
         {/* サイドバー */}
         <div className={`bg-white shadow-xl transition-all duration-300 ease-in-out flex flex-col ${
-          isCollapsed ? 'w-20' : 'w-64'
-        } rounded-r-3xl`}>
+          isCollapsed ? 'w-20' : 'w-80'
+        }`}>
           
           {/* ユーザー情報エリア */}
           <div className="p-5 border-b-2 border-gray-100">
@@ -278,37 +282,6 @@ export default function MainLayout({ children }: LayoutProps) {
                 <div className="text-sm mb-1">{currentDate}</div>
                 <div className="text-xs text-indigo-600 font-medium">管理者モード</div>
               </div>
-            </div>
-          </div>
-
-          {/* プログレスバー */}
-          <div className="bg-white rounded-2xl p-6 mb-5 shadow-lg">
-            <div className="text-sm font-semibold text-gray-700 mb-4">
-              シフト作成プロセス
-            </div>
-            <div className="flex items-center justify-between relative">
-              <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-200 rounded-full transform -translate-y-1/2"></div>
-              <div 
-                className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transform -translate-y-1/2 transition-all duration-500"
-                style={{ width: `${progressPercentage}%` }}
-              ></div>
-              
-              {progressSteps.map((step, index) => (
-                <div key={index} className="flex flex-col items-center z-10 bg-white px-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-2 transition-all duration-300 ${
-                    index < currentStepIndex 
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
-                      : index === currentStepIndex
-                      ? 'bg-white border-3 border-indigo-500 text-indigo-600'
-                      : 'bg-gray-200 text-gray-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <div className="text-xs font-medium text-gray-600 text-center max-w-20">
-                    {step.label}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
 

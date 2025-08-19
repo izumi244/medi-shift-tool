@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X } from 'lucide-react';
 
 interface ShiftAssignment {
   am?: string;
@@ -27,6 +27,9 @@ interface ShiftData {
 const ShiftPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1)); // 2025年8月
   const [editMode, setEditMode] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
+  const [editValues, setEditValues] = useState({am: '', pm: '', timeInfo: ''});
 
   // サンプル従業員データ
   const employees: Employee[] = [
@@ -36,7 +39,7 @@ const ShiftPage: React.FC = () => {
   ];
 
   // ルールに基づいたサンプルシフトデータ（1週間分）
-  const [shiftData] = useState<ShiftData>({
+  const [shiftData, setShiftData] = useState<ShiftData>({
     '1': { // 看護師A（常勤）
       1: { am: 'D', pm: '処', timeInfo: '早番' }, // 金曜日
       2: { am: '処', pm: 'CF中', timeInfo: '遅番' }, // 土曜日
@@ -90,6 +93,45 @@ const ShiftPage: React.FC = () => {
 
   const days = generateDays();
 
+  // 編集機能のハンドラー
+  const handleCellClick = (employeeId: string, day: number, employeeName: string) => {
+    if (!editMode) return;
+    
+    const shift = shiftData[employeeId]?.[day];
+    setEditingCell({employeeId, day, employeeName});
+    setEditValues({
+      am: shift?.am || '',
+      pm: shift?.pm || '',
+      timeInfo: shift?.timeInfo || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingCell) return;
+    
+    const {employeeId, day} = editingCell;
+    setShiftData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        [day]: {
+          am: editValues.am,
+          pm: editValues.pm,
+          timeInfo: editValues.timeInfo
+        }
+      }
+    }));
+    
+    handleCloseModal();
+  };
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false);
+    setEditingCell(null);
+    setEditValues({am: '', pm: '', timeInfo: ''});
+  };
+
   // 月を変更
   const changeMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
@@ -124,12 +166,14 @@ const ShiftPage: React.FC = () => {
   // シフトセルをレンダリング
   const renderShiftCell = (employee: Employee, day: number, dayInfo: { isSunday: boolean, isWednesday: boolean }) => {
     const shift = shiftData[employee.id]?.[day];
+    
     if (!shift) {
       return (
         <td key={day} className={`border-r border-gray-200 h-20 p-0.5 align-top ${
           dayInfo.isSunday ? 'bg-pink-100' :
           dayInfo.isWednesday ? 'bg-green-100' : ''
-        }`}>
+        } ${editMode ? 'cursor-pointer hover:bg-yellow-50' : ''}`}
+        onClick={() => handleCellClick(employee.id, day, employee.name)}>
           <div className="h-full flex flex-col"></div>
         </td>
       );
@@ -141,6 +185,9 @@ const ShiftPage: React.FC = () => {
     } else if (dayInfo.isWednesday) {
       cellClass += "bg-green-100 ";
     }
+    if (editMode) {
+      cellClass += "cursor-pointer hover:bg-yellow-50 ";
+    }
 
     // 配置情報を結合
     const cellContent = (shift.am || '') + (shift.am && shift.pm ? '/' : '') + (shift.pm || '');
@@ -148,7 +195,7 @@ const ShiftPage: React.FC = () => {
     const timeFontSize = getOptimalFontSize(shift.timeInfo, false);
 
     return (
-      <td key={day} className={cellClass}>
+      <td key={day} className={cellClass} onClick={() => handleCellClick(employee.id, day, employee.name)}>
         {/* 休みの場合：セル全体結合 */}
         {(!shift.am && !shift.pm && (shift.timeInfo === '休み' || shift.timeInfo === '有休' || shift.timeInfo === '希望休')) ? (
           <div className="h-full flex items-center justify-center">
@@ -178,109 +225,204 @@ const ShiftPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1">
-      <div className="w-full mx-auto">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-2 bg-white p-1 rounded shadow-sm">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => changeMonth('prev')}
-              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors"
-            >
-              <ChevronLeft className="w-3 h-3" />
-              前月
-            </button>
-            <h1 className="text-sm font-semibold text-gray-800">
-              {monthName}
-            </h1>
-            <button
-              onClick={() => changeMonth('next')}
-              className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors"
-            >
-              次月
-              <ChevronRight className="w-3 h-3" />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setEditMode(!editMode)}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                editMode
-                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                  : 'bg-emerald-500 text-white hover:bg-emerald-600'
-              }`}
-            >
-              <Edit3 className="w-3 h-3" />
-              編集モード
-            </button>
-            <button className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
-              <Download className="w-3 h-3" />
-              PDF出力
-            </button>
-            <button className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors">
-              <RefreshCw className="w-3 h-3" />
-              再生成
-            </button>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* ページヘッダー */}
+      <div className="border-b-2 border-gray-100 pb-6">
+        <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
+          <ClipboardList className="w-8 h-8" />
+          シフト表示
+        </h2>
+        <p className="text-lg text-gray-600">
+          作成されたシフト表の確認・編集
+        </p>
+      </div>
 
-        {/* シフト表 */}
-        <div className="bg-white rounded shadow-sm overflow-hidden">
-          <div className="w-full">
-            <table className="w-full border-collapse table-fixed">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 w-8 text-xs">
-                    {/* 空欄 */}
-                  </th>
-                  {days.map(({ day, dayOfWeek, isWednesday, isSunday }) => (
-                    <th
-                      key={day}
-                      className={`border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 text-xs w-auto ${
-                        isSunday ? 'bg-pink-100' :
-                        isWednesday ? 'bg-green-100' : ''
-                      }`}
-                      style={{ width: `${(100 - 6) / daysInMonth}%` }}
-                    >
-                      <div className="text-xs">{day}</div>
-                      <div className="text-xs">({dayOfWeek})</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {/* 備考行 */}
-                <tr className="border-b border-gray-200">
-                  <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
-                    <div className="text-xs font-medium text-gray-800 text-center">
-                      備考
-                    </div>
-                  </td>
-                  {days.map(({ day, isSunday, isWednesday }) => (
-                    <td key={day} className={`border-r border-gray-200 h-10 p-0.5 align-top ${
-                      isSunday ? 'bg-pink-100' :
-                      isWednesday ? 'bg-green-100' : ''
-                    }`}>
+      {/* シフト表コンテンツ */}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1">
+        <div className="w-full mx-auto">
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between mb-2 bg-white p-1 rounded shadow-sm">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => changeMonth('prev')}
+                className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors text-gray-700"
+              >
+                <ChevronLeft className="w-3 h-3 text-gray-700" />
+                前月
+              </button>
+              <h1 className="text-xl font-bold text-gray-800">
+                {monthName}
+              </h1>
+              <button
+                onClick={() => changeMonth('next')}
+                className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors text-gray-700"
+              >
+                次月
+                <ChevronRight className="w-3 h-3 text-gray-700" />
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setEditMode(!editMode)}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                  editMode
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                }`}
+              >
+                <Edit3 className="w-3 h-3" />
+                {editMode ? '編集中' : '編集モード'}
+              </button>
+              <button className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
+                <Download className="w-3 h-3" />
+                PDF出力
+              </button>
+              <button className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors">
+                <RefreshCw className="w-3 h-3" />
+                再生成
+              </button>
+            </div>
+          </div>
+
+          {/* シフト表 */}
+          <div className="bg-white rounded shadow-sm overflow-hidden">
+            <div className="w-full">
+              <table className="w-full border-collapse table-fixed">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 w-8 text-xs">
                       {/* 空欄 */}
-                    </td>
-                  ))}
-                </tr>
-                {employees.map((employee) => (
-                  <tr key={employee.id} className="border-b border-gray-200">
+                    </th>
+                    {days.map(({ day, dayOfWeek, isWednesday, isSunday }) => (
+                      <th
+                        key={day}
+                        className={`border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 text-xs w-auto ${
+                          isSunday ? 'bg-pink-100' :
+                          isWednesday ? 'bg-green-100' : ''
+                        }`}
+                        style={{ width: `${(100 - 6) / daysInMonth}%` }}
+                      >
+                        <div className="text-xs">{day}</div>
+                        <div className="text-xs">({dayOfWeek})</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* 備考行 */}
+                  <tr className="border-b border-gray-200">
                     <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
                       <div className="text-xs font-medium text-gray-800 text-center">
-                        {employee.name.slice(0, 4)}
+                        備考
                       </div>
                     </td>
-                    {days.map(({ day, isSunday, isWednesday }) => renderShiftCell(employee, day, { isSunday, isWednesday }))}
+                    {days.map(({ day, isSunday, isWednesday }) => (
+                      <td key={day} className={`border-r border-gray-200 h-10 p-0.5 align-top ${
+                        isSunday ? 'bg-pink-100' :
+                        isWednesday ? 'bg-green-100' : ''
+                      }`}>
+                        {/* 空欄 */}
+                      </td>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                  {employees.map((employee) => (
+                    <tr key={employee.id} className="border-b border-gray-200">
+                      <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
+                        <div className="text-xs font-medium text-gray-800 text-center">
+                          {employee.name.slice(0, 4)}
+                        </div>
+                      </td>
+                      {days.map(({ day, isSunday, isWednesday }) => renderShiftCell(employee, day, { isSunday, isWednesday }))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* 編集モーダル */}
+      {isEditModalOpen && editingCell && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-indigo-600">シフト編集</h3>
+              <button
+                onClick={handleCloseModal}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-sm text-gray-600 mb-2">
+                {editingCell.employeeName} - {currentDate.getMonth() + 1}月{editingCell.day}日
+              </div>
+            </div>
+
+            <form className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  午前配置
+                </label>
+                <input
+                  type="text"
+                  value={editValues.am}
+                  onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                  placeholder="例：D、処、CF中など"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  午後配置
+                </label>
+                <input
+                  type="text"
+                  value={editValues.pm}
+                  onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                  placeholder="例：処、CF外、健診など"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  時間情報
+                </label>
+                <input
+                  type="text"
+                  value={editValues.timeInfo}
+                  onChange={(e) => setEditValues(prev => ({ ...prev, timeInfo: e.target.value }))}
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                  placeholder="例：早番、遅番、9:00-15:00、休み"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300"
+                >
+                  保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
