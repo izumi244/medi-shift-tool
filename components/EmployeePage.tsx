@@ -1,282 +1,251 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import React, { useState } from 'react';
 import { 
   Users, 
   Plus, 
-  Search,
   Edit, 
   Trash2, 
-  Save,
-  X,
-  Phone,
-  Mail,
+  Search, 
+  X, 
+  MapPin, 
   Calendar,
-  MapPin
-} from 'lucide-react'
-import { Employee, EmploymentType, JobType, FacilityType } from '@/types'
+  Clock
+} from 'lucide-react';
 
-export default function EmployeePage() {
-  // 従業員データ
+// 型定義
+type EmploymentType = '常勤' | 'パート';
+type JobType = '看護師' | '臨床検査技師';
+type FacilityType = 'D' | '処' | 'CF中' | 'CF外' | 'CF洗浄' | '健診G' | '健診' | 'エコー';
+
+interface Employee {
+  id: string;
+  name: string;
+  employment_type: EmploymentType;
+  job_type: JobType;
+  available_days: string[];
+  assignable_workplaces_by_day: Record<string, FacilityType[]>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+const EmployeePage: React.FC = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [searchText, setSearchText] = useState('');
+  
+  // フォームデータ（月〜土を最初から開いた状態に）
+  const [formData, setFormData] = useState({
+    name: '',
+    employment_type: '常勤' as EmploymentType,
+    job_type: '看護師' as JobType,
+    available_days: ['月', '火', '水', '木', '金', '土'] as string[], // 月〜土を最初から選択状態に
+    assignable_workplaces_by_day: { 
+      '月': [], '火': [], '水': [], '木': [], '金': [], '土': [] 
+    } as Record<string, FacilityType[]>
+  });
+
+  // サンプル従業員データ
   const [employees, setEmployees] = useState<Employee[]>([
     {
       id: '1',
       name: '看護師A',
       employment_type: '常勤',
       job_type: '看護師',
-      assignable_facilities: ['クリニック棟', '健診棟'],
+      available_days: ['月', '火', '水', '木', '金'],
       assignable_workplaces_by_day: {
-        '月曜日': ['D', '処', 'CF外', 'CF中', 'CF洗浄', '健診G'],
-        '火曜日': ['D', '処', 'CF外', 'CF中', 'CF洗浄', '健診G'],
-        '木曜日': ['D', '処', 'CF外', 'CF中', 'CF洗浄', '健診G'],
-        '金曜日': ['D', '処', 'CF外', 'CF中', 'CF洗浄', '健診G'],
-        '土曜日': ['D', '処', 'CF外', 'CF中', 'CF洗浄', '健診G']
+        '月': ['D', '処', 'CF中'],
+        '火': ['D', '処', 'CF外'],
+        '水': ['健診G', '健診'],
+        '木': ['D', '処', 'CF中'],
+        '金': ['D', '処', 'CF外']
       },
-      available_days: ['月曜日', '火曜日', '木曜日', '金曜日', '土曜日'],
-      phone: '090-1234-5678',
-      email: 'nurse-a@example.com',
-      notes: '経験豊富、CF中も対応可能',
       is_active: true,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
+      created_at: '2025-08-01T09:00:00Z',
+      updated_at: '2025-08-01T09:00:00Z'
     },
     {
       id: '2',
-      name: '看護師B',
-      employment_type: '常勤',
-      job_type: '看護師',
-      assignable_facilities: ['クリニック棟'],
-      assignable_workplaces_by_day: {
-        '月曜日': ['D', '処'],
-        '火曜日': ['D', '処'],
-        '水曜日': [], // 水曜日はクリニック棟休診
-        '木曜日': ['D', '処'],
-        '金曜日': ['D', '処']
-      },
-      available_days: ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日'],
-      phone: '090-2345-6789',
-      email: 'nurse-b@example.com',
-      notes: 'エコー得意',
-      is_active: true,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
-    },
-    {
-      id: '3',
       name: 'パート看護師A',
       employment_type: 'パート',
       job_type: '看護師',
-      assignable_facilities: ['クリニック棟'],
+      available_days: ['月', '火', '木', '金'],
       assignable_workplaces_by_day: {
-        '月曜日': ['D', '処'],
-        '火曜日': ['D', '処'],
-        '木曜日': ['D', '処'],
-        '金曜日': ['D', '処']
+        '月': ['D', '処'],
+        '火': ['D', '処'],
+        '木': ['D', '処'],
+        '金': ['D', '処']
       },
-      available_days: ['月曜日', '火曜日', '木曜日', '金曜日'],
-      phone: '090-3456-7890',
-      email: 'part-nurse-a@example.com',
-      notes: '午前中メイン、処置得意',
       is_active: true,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
+      created_at: '2025-08-02T10:30:00Z',
+      updated_at: '2025-08-02T10:30:00Z'
     },
     {
-      id: '4',
+      id: '3',
       name: '臨床検査技師A',
       employment_type: '常勤',
       job_type: '臨床検査技師',
-      assignable_facilities: ['健診棟'],
+      available_days: ['月', '火', '水', '木', '金', '土'],
       assignable_workplaces_by_day: {
-        '月曜日': ['健診G', '健診'],
-        '火曜日': ['健診G', '健診'],
-        '水曜日': ['健診G', '健診'],
-        '木曜日': ['健診G', '健診'],
-        '金曜日': ['健診G', '健診'],
-        '土曜日': ['健診G', '健診']
+        '月': ['健診G', '健診', 'CF洗浄'],
+        '火': ['健診G', '健診', 'エコー'],
+        '水': ['健診G', '健診'],
+        '木': ['健診G', '健診', 'CF洗浄'],
+        '金': ['健診G', '健診', 'エコー'],
+        '土': ['健診G', '健診']
       },
-      available_days: ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'],
-      phone: '090-4567-8901',
-      email: 'tech-a@example.com',
-      notes: '健診業務専門、エコー対応可',
       is_active: true,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
+      created_at: '2025-08-03T14:15:00Z',
+      updated_at: '2025-08-03T14:15:00Z'
     }
-  ])
+  ]);
 
-  // WorkplacePage管理の配置場所一覧（曜日別・実際の配置場所を参照）
-  // 型定義を明確化
-  type AvailableWorkplacesByDay = Record<string, Record<string, string[]>>
-  
-  const availableWorkplacesByDay: AvailableWorkplacesByDay = {
-    '月曜日': {
-      'クリニック棟': ['D', '処', 'CF外', 'CF中'],
-      '健診棟': ['CF洗浄', '健診G', '健診']
-    },
-    '火曜日': {
-      'クリニック棟': ['D', '処', 'CF外', 'CF中'],
-      '健診棟': ['CF洗浄', '健診G', '健診']
-    },
-    '水曜日': {
-      'クリニック棟': [], // 休診
-      '健診棟': ['健診G', '健診']
-    },
-    '木曜日': {
-      'クリニック棟': ['D', '処', 'CF外', 'CF中'],
-      '健診棟': ['CF洗浄', '健診G', '健診']
-    },
-    '金曜日': {
-      'クリニック棟': ['D', '処', 'CF外', 'CF中'],
-      '健診棟': ['CF洗浄', '健診G', '健診']
-    },
-    '土曜日': {
-      'クリニック棟': ['D', '処', 'CF外', 'CF中'],
-      '健診棟': ['CF洗浄', '健診G', '健診']
+  // フィルタリングされた従業員（検索機能無効化）
+  const filteredEmployees = employees.filter(emp => emp.is_active);
+
+  // 配置場所オプション（配置場所管理ページから動的取得予定）
+  const facilityOptions: { value: FacilityType; label: string; category: string }[] = [
+    { value: 'D', label: 'D', category: 'クリニック棟' },
+    { value: '処', label: '処', category: 'クリニック棟' },
+    { value: 'CF中', label: 'CF中', category: 'クリニック棟' },
+    { value: 'CF外', label: 'CF外', category: 'クリニック棟' },
+    { value: 'CF洗浄', label: 'CF洗浄', category: 'クリニック棟' },
+    { value: '健診G', label: '健診G', category: '健診棟' },
+    { value: '健診', label: '健診', category: '健診棟' },
+    { value: 'エコー', label: 'エコー', category: '健診棟' }
+  ];
+
+  // 曜日オプション（日曜日を削除）
+  const dayOptions = ['月', '火', '水', '木', '金', '土'];
+
+  // 水曜日用の配置場所オプション（クリニック棟除外）
+  const getAvailableFacilitiesForDay = (day: string) => {
+    if (day === '水') {
+      // 水曜日はクリニック棟休診のため健診棟のみ
+      return facilityOptions.filter(f => f.category === '健診棟');
     }
-  }
-
-  // 状態管理
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
-  const [searchText, setSearchText] = useState('')
-  const [filterEmploymentType, setFilterEmploymentType] = useState<EmploymentType | ''>('')
-  const [filterJobType, setFilterJobType] = useState<JobType | ''>('')
-
-  // フォーム状態
-  const [formData, setFormData] = useState({
-    name: '',
-    employment_type: '常勤' as EmploymentType,
-    job_type: '看護師' as JobType,
-    assignable_workplaces_by_day: {} as Record<string, string[]>, // 曜日別配置可能場所（メイン）
-    phone: '',
-    email: '',
-    notes: ''
-  })
-
-  // フィルタリングされた従業員
-  const filteredEmployees = employees.filter(employee => {
-    if (!employee.is_active) return false
-    
-    const matchesSearch = employee.name.toLowerCase().includes(searchText.toLowerCase())
-    const matchesEmploymentType = !filterEmploymentType || employee.employment_type === filterEmploymentType
-    const matchesJobType = !filterJobType || employee.job_type === filterJobType
-    
-    return matchesSearch && matchesEmploymentType && matchesJobType
-  })
+    return facilityOptions;
+  };
 
   // モーダルを開く
   const openModal = (employee?: Employee) => {
     if (employee) {
-      setEditingEmployee(employee)
+      setEditingEmployee(employee);
+      // 編集時も土曜日を確実に開いた状態にする
+      const availableDays = employee.available_days.includes('土') 
+        ? employee.available_days 
+        : [...employee.available_days, '土'];
+      
+      const assignableWorkplaces = { ...employee.assignable_workplaces_by_day };
+      if (!assignableWorkplaces['土']) {
+        assignableWorkplaces['土'] = [];
+      }
+      
       setFormData({
         name: employee.name,
         employment_type: employee.employment_type,
         job_type: employee.job_type,
-        assignable_workplaces_by_day: employee.assignable_workplaces_by_day || {}, // undefined対応
-        phone: employee.phone || '',
-        email: employee.email || '',
-        notes: employee.notes || ''
-      })
+        available_days: availableDays,
+        assignable_workplaces_by_day: assignableWorkplaces
+      });
     } else {
-      setEditingEmployee(null)
+      setEditingEmployee(null);
       setFormData({
         name: '',
         employment_type: '常勤',
         job_type: '看護師',
-        assignable_workplaces_by_day: {}, // 曜日別配置場所のみ
-        phone: '',
-        email: '',
-        notes: ''
-      })
+        available_days: ['月', '火', '水', '木', '金', '土'], // 月〜土を最初から選択状態に
+        assignable_workplaces_by_day: { 
+          '月': [], '火': [], '水': [], '木': [], '金': [], '土': [] 
+        }
+      });
     }
-    setIsModalOpen(true)
-  }
+    setIsModalOpen(true);
+  };
 
   // モーダルを閉じる
   const closeModal = () => {
-    setIsModalOpen(false)
-    setEditingEmployee(null)
-  }
+    setIsModalOpen(false);
+    setEditingEmployee(null);
+    setFormData({
+      name: '',
+      employment_type: '常勤',
+      job_type: '看護師',
+      available_days: ['月', '火', '水', '木', '金', '土'], // 月〜土を最初から選択状態に
+      assignable_workplaces_by_day: { 
+        '月': [], '火': [], '水': [], '木': [], '金': [], '土': [] 
+      }
+    });
+  };
 
   // 従業員を保存
   const saveEmployee = () => {
-    const now = new Date().toISOString()
-    
-    // 曜日別配置場所から自動的に勤務可能曜日と配置可能施設を計算
-    const available_days = Object.keys(formData.assignable_workplaces_by_day).filter(
-      day => formData.assignable_workplaces_by_day[day].length > 0
-    )
-    
-    const assignable_facilities = Array.from(new Set(
-      available_days.flatMap(day => 
-        Object.keys(availableWorkplacesByDay[day] || {}).filter(facility =>
-          formData.assignable_workplaces_by_day[day].some((workplace: string) =>
-            (availableWorkplacesByDay[day][facility] || []).includes(workplace)
-          )
-        )
-      )
-    )) as FacilityType[]
-    
-    const employeeData = {
-      ...formData,
-      available_days,
-      assignable_facilities
-    }
-    
+    const now = new Date().toISOString();
+
     if (editingEmployee) {
       // 編集
       setEmployees(prev => prev.map(emp => 
-        emp.id === editingEmployee.id
-          ? { ...emp, ...employeeData, updated_at: now }
+        emp.id === editingEmployee.id 
+          ? { ...emp, ...formData, updated_at: now }
           : emp
-      ))
+      ));
     } else {
       // 新規追加
       const newEmployee: Employee = {
         id: (employees.length + 1).toString(),
-        ...employeeData,
+        ...formData,
         is_active: true,
         created_at: now,
         updated_at: now
-      }
-      setEmployees(prev => [...prev, newEmployee])
+      };
+      setEmployees(prev => [...prev, newEmployee]);
     }
     
-    closeModal()
-  }
+    closeModal();
+  };
 
   // 従業員を削除
   const deleteEmployee = (id: string) => {
     if (confirm('この従業員を削除しますか？')) {
       setEmployees(prev => prev.map(emp => 
         emp.id === id ? { ...emp, is_active: false } : emp
-      ))
+      ));
     }
-  }
+  };
 
-  // 曜日別配置場所の更新
-  const updateWorkplaceByDay = (day: string, workplace: string) => {
-    setFormData(prev => ({
-      ...prev,
-      assignable_workplaces_by_day: {
-        ...prev.assignable_workplaces_by_day,
-        [day]: prev.assignable_workplaces_by_day[day]?.includes(workplace)
-          ? prev.assignable_workplaces_by_day[day].filter((w: string) => w !== workplace)
-          : [...(prev.assignable_workplaces_by_day[day] || []), workplace]
+  // チェックボックス配列の更新
+  const updateArrayField = (field: 'available_days', value: string) => {
+    setFormData(prev => {
+      const newAvailableDays = prev[field].includes(value)
+        ? prev[field].filter(item => item !== value)
+        : [...prev[field], value];
+      
+      // 曜日を削除する場合、その曜日の配置場所も削除
+      const newAssignableWorkplaces = { ...prev.assignable_workplaces_by_day };
+      if (!newAvailableDays.includes(value)) {
+        delete newAssignableWorkplaces[value];
+      } else if (!newAssignableWorkplaces[value]) {
+        newAssignableWorkplaces[value] = [];
       }
-    }))
-  }
+
+      return {
+        ...prev,
+        [field]: newAvailableDays,
+        assignable_workplaces_by_day: newAssignableWorkplaces
+      };
+    });
+  };
 
   const employmentTypeColors = {
     '常勤': 'bg-blue-100 text-blue-800 border-blue-200',
     'パート': 'bg-purple-100 text-purple-800 border-purple-200'
-  }
+  };
 
   const jobTypeIcons = {
     '看護師': '🩺',
     '臨床検査技師': '🔬'
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -291,9 +260,9 @@ export default function EmployeePage() {
         </p>
       </div>
 
-      {/* 検索・フィルタ・追加ボタン */}
+      {/* 検索・追加ボタン */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col md:flex-row gap-4 flex-1">
+        <div className="flex-1">
           {/* 検索 */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -302,30 +271,9 @@ export default function EmployeePage() {
               placeholder="従業員名で検索..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors w-full md:w-64"
+              className="pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors w-full md:w-64 text-gray-800"
             />
           </div>
-
-          {/* フィルタ */}
-          <select
-            value={filterEmploymentType}
-            onChange={(e) => setFilterEmploymentType(e.target.value as EmploymentType | '')}
-            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
-          >
-            <option value="">雇用形態（全て）</option>
-            <option value="常勤">常勤</option>
-            <option value="パート">パート</option>
-          </select>
-
-          <select
-            value={filterJobType}
-            onChange={(e) => setFilterJobType(e.target.value as JobType | '')}
-            className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
-          >
-            <option value="">職種（全て）</option>
-            <option value="看護師">看護師</option>
-            <option value="臨床検査技師">臨床検査技師</option>
-          </select>
         </div>
 
         {/* 追加ボタン */}
@@ -338,6 +286,65 @@ export default function EmployeePage() {
         </button>
       </div>
 
+      {/* 統計カード */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">総従業員数</div>
+              <div className="text-xl font-bold text-blue-600">
+                {employees.filter(e => e.is_active).length}人
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">常勤スタッフ</div>
+              <div className="text-xl font-bold text-green-600">
+                {employees.filter(e => e.is_active && e.employment_type === '常勤').length}人
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">パートスタッフ</div>
+              <div className="text-xl font-bold text-purple-600">
+                {employees.filter(e => e.is_active && e.employment_type === 'パート').length}人
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">配置場所</div>
+              <div className="text-xl font-bold text-orange-600">
+                {facilityOptions.length}箇所
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 従業員一覧テーブル */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
@@ -347,7 +354,7 @@ export default function EmployeePage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">氏名</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">雇用形態</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">職種</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">配置設定</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">配置可能場所</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">勤務可能曜日</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">操作</th>
               </tr>
@@ -357,61 +364,43 @@ export default function EmployeePage() {
                 <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                        {employee.name.charAt(0)}
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg">
+                        {jobTypeIcons[employee.job_type]}
                       </div>
-                      <div>
-                        <div className="font-semibold text-gray-900">{employee.name}</div>
-                        {employee.phone && (
-                          <div className="text-xs text-gray-500 flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {employee.phone}
-                          </div>
-                        )}
-                      </div>
+                      <div className="font-semibold text-gray-900">{employee.name}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${employmentTypeColors[employee.employment_type]}`}>
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${employmentTypeColors[employee.employment_type]}`}>
                       {employee.employment_type}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-gray-700">{employee.job_type}</td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{jobTypeIcons[employee.job_type]}</span>
-                      <span className="font-medium text-gray-900">{employee.job_type}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-2">
-                      {/* 施設表示 */}
-                      <div className="flex flex-wrap gap-1">
-                        {employee.assignable_facilities.map((facility) => (
-                          <span
-                            key={facility}
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              facility === 'クリニック棟' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}
-                          >
-                            {facility === 'クリニック棟' ? '🏢' : '🔬'} {facility}
+                    <div className="flex flex-wrap gap-1 max-w-xs">
+                      {Object.values(employee.assignable_workplaces_by_day)
+                        .flat()
+                        .filter((value, index, self) => self.indexOf(value) === index) // 重複除去
+                        .slice(0, 3)
+                        .map((facility) => (
+                          <span key={facility} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {facility}
                           </span>
                         ))}
-                      </div>
-                      {/* 曜日別配置場所の設定数表示 */}
-                      {employee.assignable_workplaces_by_day && Object.keys(employee.assignable_workplaces_by_day).length > 0 && (
-                        <div className="text-xs text-gray-600">
-                          📅 {Object.keys(employee.assignable_workplaces_by_day).filter(day => 
-                            (employee.assignable_workplaces_by_day?.[day] || []).length > 0
-                          ).length}曜日設定済み
-                        </div>
+                      {Object.values(employee.assignable_workplaces_by_day).flat().filter((value, index, self) => self.indexOf(value) === index).length > 3 && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                          +{Object.values(employee.assignable_workplaces_by_day).flat().filter((value, index, self) => self.indexOf(value) === index).length - 3}
+                        </span>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-gray-900">
-                      {employee.available_days.join('・')}
+                    <div className="flex flex-wrap gap-1">
+                      {employee.available_days.map((day) => (
+                        <span key={day} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                          {day}
+                        </span>
+                      ))}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -442,7 +431,7 @@ export default function EmployeePage() {
       {/* 従業員編集モーダル */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-indigo-600">
                 {editingEmployee ? '従業員編集' : '新規従業員追加'}
@@ -455,162 +444,251 @@ export default function EmployeePage() {
               </button>
             </div>
 
-            <form className="space-y-6">
-              {/* 基本情報 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    氏名 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
-                    placeholder="例：看護師A"
-                  />
+            <form className="space-y-5">
+              {/* 基本情報セクション */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  基本情報
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      氏名 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                      placeholder="例：看護師A"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      雇用形態 <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.employment_type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, employment_type: e.target.value as EmploymentType }))}
+                      className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                    >
+                      <option value="常勤">常勤</option>
+                      <option value="パート">パート</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    雇用形態 <span className="text-red-500">*</span>
+                <div className="mt-3">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    職種 <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={formData.employment_type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, employment_type: e.target.value as EmploymentType }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
+                    value={formData.job_type}
+                    onChange={(e) => setFormData(prev => ({ ...prev, job_type: e.target.value as JobType }))}
+                    className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
                   >
-                    <option value="常勤">常勤</option>
-                    <option value="パート">パート</option>
+                    <option value="看護師">看護師</option>
+                    <option value="臨床検査技師">臨床検査技師</option>
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  職種 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.job_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, job_type: e.target.value as JobType }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
-                >
-                  <option value="看護師">🩺 看護師</option>
-                  <option value="臨床検査技師">🔬 臨床検査技師</option>
-                </select>
-              </div>
-
-              {/* 連絡先情報 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    電話番号
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
-                    placeholder="090-1234-5678"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    メールアドレス
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
-                    placeholder="example@hospital.com"
-                  />
-                </div>
-              </div>
-
-              {/* 曜日別配置可能場所 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+              {/* 曜日別配置可能場所セクション */}
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
                   曜日別配置可能場所 <span className="text-red-500">*</span>
-                </label>
-                <p className="text-sm text-gray-600 mb-4">
-                  各曜日で配置可能な場所を選択してください。選択した曜日が勤務可能曜日、選択した施設が配置可能施設として自動設定されます。
-                </p>
-                <div className="space-y-4 max-h-80 overflow-y-auto">
-                  {['月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'].map((day) => (
-                    <div key={day} className="border-2 border-gray-200 rounded-xl p-4">
-                      <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
-                        📅 {day}
-                        {day === '水曜日' && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                </h4>
+                <div className="space-y-2">
+                  {dayOptions.map((day) => (
+                    <div key={day} className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+                      <div className="flex items-center gap-3 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.available_days.includes(day)}
+                          onChange={() => updateArrayField('available_days', day)}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200"
+                        />
+                        <span className="text-sm font-semibold text-gray-800">{day}曜日</span>
+                        {formData.available_days.includes(day) && (
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                            勤務日
+                          </span>
+                        )}
+                        {day === '水' && (
+                          <span className="text-xs text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
                             クリニック棟休診
                           </span>
                         )}
-                      </h4>
-                      <div className="space-y-3">
-                        {Object.entries(availableWorkplacesByDay[day] || {}).map(([facility, workplaces]) => {
-                          if (workplaces.length === 0) return null
+                      </div>
+                      {formData.available_days.includes(day) && (
+                        <div className="ml-7">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-gray-600">配置可能場所:</span>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const availableFacilities = getAvailableFacilitiesForDay(day).map(f => f.value);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignable_workplaces_by_day: {
+                                      ...prev.assignable_workplaces_by_day,
+                                      [day]: availableFacilities
+                                    }
+                                  }));
+                                }}
+                                className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition-colors"
+                              >
+                                全選択
+                              </button>
+                              {day !== '水' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const clinicFacilities = facilityOptions
+                                      .filter(f => f.category === 'クリニック棟')
+                                      .map(f => f.value);
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      assignable_workplaces_by_day: {
+                                        ...prev.assignable_workplaces_by_day,
+                                        [day]: clinicFacilities
+                                      }
+                                    }));
+                                  }}
+                                  className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                >
+                                  クリニック
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const kenshinFacilities = facilityOptions
+                                    .filter(f => f.category === '健診棟')
+                                    .map(f => f.value);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignable_workplaces_by_day: {
+                                      ...prev.assignable_workplaces_by_day,
+                                      [day]: kenshinFacilities
+                                    }
+                                  }));
+                                }}
+                                className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                              >
+                                健診
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    assignable_workplaces_by_day: {
+                                      ...prev.assignable_workplaces_by_day,
+                                      [day]: []
+                                    }
+                                  }));
+                                }}
+                                className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                              >
+                                クリア
+                              </button>
+                            </div>
+                          </div>
                           
-                          return (
-                            <div key={facility} className="border border-gray-200 rounded-lg p-3">
-                              <h5 className="font-medium text-sm text-gray-700 mb-2 flex items-center gap-2">
-                                <span className="text-lg">
-                                  {facility === 'クリニック棟' ? '🏢' : '🔬'}
-                                </span>
-                                {facility}
-                              </h5>
-                              <div className="grid grid-cols-2 gap-2">
-                                {workplaces.map((workplace) => (
-                                  <label key={workplace} className="flex items-center gap-2 p-2 border border-gray-200 rounded cursor-pointer hover:border-indigo-300 transition-colors">
+                          {/* クリニック棟（水曜日は非表示） */}
+                          {day !== '水' && (
+                            <div className="mb-2">
+                              <div className="text-xs font-medium text-gray-600 mb-1">クリニック棟</div>
+                              <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
+                                {facilityOptions
+                                  .filter(f => f.category === 'クリニック棟')
+                                  .map((facility) => (
+                                  <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
                                     <input
                                       type="checkbox"
-                                      checked={formData.assignable_workplaces_by_day[day]?.includes(workplace) || false}
-                                      onChange={() => updateWorkplaceByDay(day, workplace)}
-                                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200"
+                                      checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false}
+                                      onChange={(e) => {
+                                        const dayWorkplaces = formData.assignable_workplaces_by_day[day] || [];
+                                        const newDayWorkplaces = e.target.checked
+                                          ? [...dayWorkplaces, facility.value]
+                                          : dayWorkplaces.filter(w => w !== facility.value);
+                                        
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          assignable_workplaces_by_day: {
+                                            ...prev.assignable_workplaces_by_day,
+                                            [day]: newDayWorkplaces
+                                          }
+                                        }));
+                                      }}
+                                      className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200"
                                     />
-                                    <span className="text-sm font-medium text-gray-900">{workplace}</span>
+                                    <span className="text-gray-700">{facility.label}</span>
                                   </label>
                                 ))}
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
+                          )}
+
+                          {/* 健診棟 */}
+                          <div>
+                            <div className="text-xs font-medium text-gray-600 mb-1">健診棟</div>
+                            <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
+                              {facilityOptions
+                                .filter(f => f.category === '健診棟')
+                                .map((facility) => (
+                                <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false}
+                                    onChange={(e) => {
+                                      const dayWorkplaces = formData.assignable_workplaces_by_day[day] || [];
+                                      const newDayWorkplaces = e.target.checked
+                                        ? [...dayWorkplaces, facility.value]
+                                        : dayWorkplaces.filter(w => w !== facility.value);
+                                      
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        assignable_workplaces_by_day: {
+                                          ...prev.assignable_workplaces_by_day,
+                                          [day]: newDayWorkplaces
+                                        }
+                                      }));
+                                    }}
+                                    className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200"
+                                  />
+                                  <span className="text-gray-700">{facility.label}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* 備考 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  備考・特記事項
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  rows={3}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors resize-none bg-white text-gray-900"
-                />
-              </div>
-
-              {/* ボタン */}
-              <div className="flex items-center gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={saveEmployee}
-                  className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors"
-                >
-                  <Save className="w-5 h-5" />
-                  保存
-                </button>
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
                 >
                   キャンセル
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEmployee}
+                  disabled={!formData.name || formData.available_days.length === 0}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300"
+                >
+                  {editingEmployee ? '更新' : '追加'}
                 </button>
               </div>
             </form>
@@ -618,5 +696,7 @@ export default function EmployeePage() {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
+
+export default EmployeePage;

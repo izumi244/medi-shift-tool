@@ -29,7 +29,7 @@ const ShiftPage: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
-  const [editValues, setEditValues] = useState({am: '', pm: '', timeInfo: ''});
+  const [editValues, setEditValues] = useState({am: '', pm: '', timeInfo: '', isRest: false});
 
   // サンプル従業員データ
   const employees: Employee[] = [
@@ -98,11 +98,14 @@ const ShiftPage: React.FC = () => {
     if (!editMode) return;
     
     const shift = shiftData[employeeId]?.[day];
+    const isRest = !shift?.am && !shift?.pm && (shift?.timeInfo === '休み' || shift?.timeInfo === '有休' || shift?.timeInfo === '希望休');
+    
     setEditingCell({employeeId, day, employeeName});
     setEditValues({
       am: shift?.am || '',
       pm: shift?.pm || '',
-      timeInfo: shift?.timeInfo || ''
+      timeInfo: shift?.timeInfo || '',
+      isRest: isRest
     });
     setIsEditModalOpen(true);
   };
@@ -111,17 +114,32 @@ const ShiftPage: React.FC = () => {
     if (!editingCell) return;
     
     const {employeeId, day} = editingCell;
-    setShiftData(prev => ({
-      ...prev,
-      [employeeId]: {
-        ...prev[employeeId],
-        [day]: {
-          am: editValues.am,
-          pm: editValues.pm,
-          timeInfo: editValues.timeInfo
+    
+    // 休みが選択された場合
+    if (editValues.isRest) {
+      setShiftData(prev => ({
+        ...prev,
+        [employeeId]: {
+          ...prev[employeeId],
+          [day]: {
+            timeInfo: '休み'
+          }
         }
-      }
-    }));
+      }));
+    } else {
+      // 通常勤務の場合
+      setShiftData(prev => ({
+        ...prev,
+        [employeeId]: {
+          ...prev[employeeId],
+          [day]: {
+            am: editValues.am,
+            pm: editValues.pm,
+            timeInfo: editValues.timeInfo
+          }
+        }
+      }));
+    }
     
     handleCloseModal();
   };
@@ -129,7 +147,7 @@ const ShiftPage: React.FC = () => {
   const handleCloseModal = () => {
     setIsEditModalOpen(false);
     setEditingCell(null);
-    setEditValues({am: '', pm: '', timeInfo: ''});
+    setEditValues({am: '', pm: '', timeInfo: '', isRest: false});
   };
 
   // 月を変更
@@ -226,8 +244,8 @@ const ShiftPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* ページヘッダー */}
-      <div className="border-b-2 border-gray-100 pb-6">
+      {/* ページヘッダー（境界線削除） */}
+      <div className="pb-6">
         <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
           <ClipboardList className="w-8 h-8" />
           シフト表示
@@ -364,44 +382,87 @@ const ShiftPage: React.FC = () => {
             </div>
 
             <form className="space-y-4">
+              {/* 勤務・休み選択 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  午前配置
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  勤務形態
                 </label>
-                <input
-                  type="text"
-                  value={editValues.am}
-                  onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                  placeholder="例：D、処、CF中など"
-                />
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="workType"
+                      checked={!editValues.isRest}
+                      onChange={() => setEditValues(prev => ({ ...prev, isRest: false }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-200"
+                    />
+                    <span className="text-gray-700">勤務</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="workType"
+                      checked={editValues.isRest}
+                      onChange={() => setEditValues(prev => ({ ...prev, isRest: true, am: '', pm: '', timeInfo: '休み' }))}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-200"
+                    />
+                    <span className="text-gray-700">休み</span>
+                  </label>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  午後配置
-                </label>
-                <input
-                  type="text"
-                  value={editValues.pm}
-                  onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                  placeholder="例：処、CF外、健診など"
-                />
-              </div>
+              {/* 勤務の場合のみ表示 */}
+              {!editValues.isRest && (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      午前配置
+                    </label>
+                    <input
+                      type="text"
+                      value={editValues.am}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))}
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                      placeholder="例：D、処、CF中など"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  時間情報
-                </label>
-                <input
-                  type="text"
-                  value={editValues.timeInfo}
-                  onChange={(e) => setEditValues(prev => ({ ...prev, timeInfo: e.target.value }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                  placeholder="例：早番、遅番、9:00-15:00、休み"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      午後配置
+                    </label>
+                    <input
+                      type="text"
+                      value={editValues.pm}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))}
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                      placeholder="例：処、CF外、健診など"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      時間情報
+                    </label>
+                    <input
+                      type="text"
+                      value={editValues.timeInfo}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, timeInfo: e.target.value }))}
+                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                      placeholder="例：早番、遅番、9:00-15:00"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* 休みの場合のメッセージ */}
+              {editValues.isRest && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <span className="text-sm font-medium">この日は休みに設定されます</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button

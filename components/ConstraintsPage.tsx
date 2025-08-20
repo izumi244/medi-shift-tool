@@ -2,22 +2,18 @@
 
 import React, { useState } from 'react';
 import { 
-  Bot, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  X, 
-  AlertTriangle, 
-  ArrowUp, 
-  Settings, 
-  Target
+  Bot,
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  X
 } from 'lucide-react';
 
 // 型定義
 interface AIConstraintGuideline {
   id: string;
   constraint_content: string;
-  priority_level: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -25,12 +21,12 @@ interface AIConstraintGuideline {
 
 const ConstraintsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedConstraint, setSelectedConstraint] = useState<AIConstraintGuideline | null>(null);
+  const [editingConstraint, setEditingConstraint] = useState<AIConstraintGuideline | null>(null);
+  const [searchText, setSearchText] = useState('');
 
-  // フォームデータ
+  // フォーム状態
   const [formData, setFormData] = useState({
-    constraint_content: '',
-    priority_level: 5
+    constraint_content: ''
   });
 
   // サンプル制約データ
@@ -38,50 +34,43 @@ const ConstraintsPage: React.FC = () => {
     {
       id: '1',
       constraint_content: '新人スタッフは経験者とペアで配置してください。一人での対応は避けてください。',
-      priority_level: 9,
       is_active: true,
-      created_at: '2025-08-01T09:00:00Z',
-      updated_at: '2025-08-01T09:00:00Z'
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
     },
     {
       id: '2',
       constraint_content: '妊娠中のスタッフは重労働を避け、デスクワーク中心の配置にしてください。',
-      priority_level: 8,
       is_active: true,
-      created_at: '2025-08-02T10:30:00Z',
-      updated_at: '2025-08-02T10:30:00Z'
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
     },
     {
       id: '3',
-      constraint_content: 'CF洗浄業務は技師資格を持つスタッフのみに配置してください。',
-      priority_level: 7,
+      constraint_content: 'CF洗浄業務は技術資格を持つスタッフのみに配置してください。',
       is_active: true,
-      created_at: '2025-08-03T14:15:00Z',
-      updated_at: '2025-08-03T14:15:00Z'
-    },
-    {
-      id: '4',
-      constraint_content: '連続勤務は3日までとし、その後は最低1日の休暇を設けてください。',
-      priority_level: 6,
-      is_active: true,
-      created_at: '2025-08-04T16:45:00Z',
-      updated_at: '2025-08-04T16:45:00Z'
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
     }
   ]);
+
+  // フィルタリングされた制約
+  const filteredConstraints = constraints.filter(constraint => {
+    const matchesSearch = constraint.constraint_content.toLowerCase().includes(searchText.toLowerCase());
+    return matchesSearch && constraint.is_active;
+  }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()); // 更新日順でソート
 
   // モーダルを開く
   const openModal = (constraint?: AIConstraintGuideline) => {
     if (constraint) {
-      setSelectedConstraint(constraint);
+      setEditingConstraint(constraint);
       setFormData({
-        constraint_content: constraint.constraint_content,
-        priority_level: constraint.priority_level
+        constraint_content: constraint.constraint_content
       });
     } else {
-      setSelectedConstraint(null);
+      setEditingConstraint(null);
       setFormData({
-        constraint_content: '',
-        priority_level: 5
+        constraint_content: ''
       });
     }
     setIsModalOpen(true);
@@ -90,21 +79,17 @@ const ConstraintsPage: React.FC = () => {
   // モーダルを閉じる
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedConstraint(null);
-    setFormData({
-      constraint_content: '',
-      priority_level: 5
-    });
+    setEditingConstraint(null);
   };
 
   // 制約を保存
   const saveConstraint = () => {
     const now = new Date().toISOString();
-
-    if (selectedConstraint) {
+    
+    if (editingConstraint) {
       // 編集
       setConstraints(prev => prev.map(constraint => 
-        constraint.id === selectedConstraint.id 
+        constraint.id === editingConstraint.id
           ? { ...constraint, ...formData, updated_at: now }
           : constraint
       ));
@@ -125,19 +110,11 @@ const ConstraintsPage: React.FC = () => {
 
   // 制約を削除
   const deleteConstraint = (id: string) => {
-    if (confirm('この制約ルールを削除しますか？')) {
+    if (confirm('この制約条件を削除しますか？')) {
       setConstraints(prev => prev.map(constraint => 
         constraint.id === id ? { ...constraint, is_active: false } : constraint
       ));
     }
-  };
-
-  // 優先度の色分け
-  const getPriorityColor = (priority: number) => {
-    if (priority >= 9) return { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', badge: 'bg-red-500' };
-    if (priority >= 7) return { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200', badge: 'bg-orange-500' };
-    if (priority >= 5) return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', badge: 'bg-yellow-500' };
-    return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200', badge: 'bg-gray-500' };
   };
 
   return (
@@ -153,94 +130,47 @@ const ConstraintsPage: React.FC = () => {
         </p>
       </div>
 
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">最高優先度</div>
-              <div className="text-xl font-bold text-red-600">
-                {constraints.filter(c => c.priority_level >= 9 && c.is_active).length}件
-              </div>
-            </div>
+      {/* 検索・追加ボタン */}
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+        <div className="flex-1">
+          {/* 検索 */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="制約条件で検索..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors w-full text-gray-800"
+            />
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-              <ArrowUp className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">高優先度</div>
-              <div className="text-xl font-bold text-orange-600">
-                {constraints.filter(c => c.priority_level >= 7 && c.priority_level < 9 && c.is_active).length}件
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Settings className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">総制約数</div>
-              <div className="text-xl font-bold text-blue-600">
-                {constraints.filter(c => c.is_active).length}件
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <div className="text-sm text-gray-600">適用率</div>
-              <div className="text-xl font-bold text-green-600">95%</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 制約ルール追加ボタン */}
-      <div className="flex justify-end">
+        {/* 追加ボタン */}
         <button
           onClick={() => openModal()}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
         >
           <Plus className="w-5 h-5" />
-          新しい制約ルール追加
+          新しい制約条件追加
         </button>
       </div>
 
-      {/* 制約ルール一覧 */}
+      {/* 制約一覧 */}
       <div className="space-y-4">
-        {constraints.filter(c => c.is_active).map((constraint) => {
-          const priorityColor = getPriorityColor(constraint.priority_level);
-          
+        {filteredConstraints.map((constraint) => {
           return (
-            <div key={constraint.id} className={`bg-white rounded-2xl p-6 border-2 ${priorityColor.border} shadow-lg hover:shadow-xl transition-all duration-300`}>
+            <div
+              key={constraint.id}
+              className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${priorityColor.badge}`}></div>
-                      <span className="text-sm font-medium text-gray-600">
-                        優先度: {constraint.priority_level}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-gray-900 text-base leading-relaxed mb-3">
+                  <p className="text-gray-800 leading-relaxed mb-3">
                     {constraint.constraint_content}
+                  </p>
+                  <div className="text-sm text-gray-500">
+                    更新日: {new Date(constraint.updated_at).toLocaleDateString('ja-JP')}
                   </div>
                 </div>
 
@@ -264,15 +194,22 @@ const ConstraintsPage: React.FC = () => {
             </div>
           );
         })}
+
+        {filteredConstraints.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-lg mb-2">制約条件がありません</div>
+            <p className="text-gray-500">新しい制約条件を追加してください</p>
+          </div>
+        )}
       </div>
 
-      {/* モーダル */}
+      {/* 制約追加・編集モーダル */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-indigo-600">
-                {selectedConstraint ? '制約ルール編集' : '新しい制約ルール追加'}
+                {editingConstraint ? '制約条件編集' : '新しい制約条件追加'}
               </h3>
               <button
                 onClick={closeModal}
@@ -285,33 +222,13 @@ const ConstraintsPage: React.FC = () => {
             <form className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  優先度レベル <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.priority_level}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority_level: parseInt(e.target.value) }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                >
-                  <option value={10} className="text-gray-800">10 (最高) - 絶対遵守</option>
-                  <option value={9} className="text-gray-800">9 (最高) - 法的要件</option>
-                  <option value={8} className="text-gray-800">8 (高) - 安全性重要</option>
-                  <option value={7} className="text-gray-800">7 (高) - 業務効率重要</option>
-                  <option value={6} className="text-gray-800">6 (中) - 推奨</option>
-                  <option value={5} className="text-gray-800">5 (中) - 標準</option>
-                  <option value={4} className="text-gray-800">4 (低) - 軽微</option>
-                  <option value={3} className="text-gray-800">3 (低) - 任意</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  制約内容（自然言語で記述） <span className="text-red-500">*</span>
+                  制約内容 <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={formData.constraint_content}
                   onChange={(e) => setFormData(prev => ({ ...prev, constraint_content: e.target.value }))}
+                  className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800 resize-none"
                   rows={4}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors resize-none text-gray-800"
                   placeholder="例：新人スタッフは経験者とペアで配置してください。一人での対応は避けてください。"
                 />
               </div>
@@ -327,10 +244,10 @@ const ConstraintsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={saveConstraint}
-                  disabled={!formData.constraint_content}
+                  disabled={!formData.constraint_content.trim()}
                   className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300"
                 >
-                  {selectedConstraint ? '更新' : '追加'}
+                  {editingConstraint ? '更新' : '追加'}
                 </button>
               </div>
             </form>

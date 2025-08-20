@@ -65,7 +65,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
     {
       id: 'constraints',
       icon: <Bot className="w-12 h-12" />,
-      title: 'AI制約ガイドライン',
+      title: 'AI制約条件管理',
       description: '自然言語での制約方針設定',
       gradientFrom: 'from-orange-500',
       gradientTo: 'to-orange-600'
@@ -74,7 +74,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
       id: 'shift',
       icon: <ClipboardList className="w-12 h-12" />,
       title: 'シフト表示',
-      description: '生成されたシフトの確認・編集',
+      description: '作成されたシフトの確認・編集',
       gradientFrom: 'from-indigo-500',
       gradientTo: 'to-indigo-600'
     }
@@ -172,7 +172,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
               type="month"
               value={targetMonth}
               onChange={(e) => setTargetMonth(e.target.value)}
-              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
+              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
             />
           </div>
           
@@ -185,7 +185,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               placeholder=""
-              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors"
+              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
             />
           </div>
         </div>
