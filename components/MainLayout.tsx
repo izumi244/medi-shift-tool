@@ -13,7 +13,8 @@ import {
   Download,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock
 } from 'lucide-react'
 
 // ページコンポーネントのインポート
@@ -23,12 +24,13 @@ import WorkplacePage from './WorkplacePage'
 import LeavePage from './LeavePage'
 import ConstraintsPage from './ConstraintsPage'
 import ShiftPage from './ShiftPage'
+import ShiftPatternPage from './ShiftPatternPage'
 
 interface LayoutProps {
   children?: ReactNode
 }
 
-type PageType = 'dataInput' | 'employee' | 'workplace' | 'leave' | 'constraints' | 'shift'
+type PageType = 'dataInput' | 'employee' | 'workplace' | 'leave' | 'constraints' | 'shift' | 'shiftPattern'
 
 interface MenuItem {
   id: PageType
@@ -55,7 +57,8 @@ export default function MainLayout({ children }: LayoutProps) {
       'workplace': 'workplace', 
       'leave': 'leave',
       'constraints': 'constraints',
-      'shift': 'shift'
+      'shift': 'shift',
+      'shiftPattern': 'shiftPattern'
     }
     
     const targetPage = pageMap[pageId]
@@ -79,6 +82,8 @@ export default function MainLayout({ children }: LayoutProps) {
         return <ConstraintsPage />
       case 'shift':
         return <ShiftPage />
+      case 'shiftPattern':
+        return <ShiftPatternPage />
       default:
         return <DataInputPage onNavigate={handleNavigate} />
     }
@@ -110,6 +115,12 @@ export default function MainLayout({ children }: LayoutProps) {
       icon: <MapPin className="w-5 h-5" />,
       title: '配置場所管理',
       description: 'AM/PM分割、14箇所設定'
+    },
+    {
+      id: 'shiftPattern',
+      icon: <Clock className="w-5 h-5" />,
+      title: 'シフトパターン管理',
+      description: '勤務時間帯のパターンを登録'
     },
     {
       id: 'leave',
@@ -271,7 +282,7 @@ export default function MainLayout({ children }: LayoutProps) {
         </div>
 
         {/* メインコンテンツエリア */}
-        <div className="flex-1 flex flex-col p-5">
+        <div className="flex-1 flex flex-col p-5 min-w-0">
           {/* ヘッダー */}
           <div className="bg-white rounded-2xl p-6 mb-5 shadow-lg">
             <div className="flex justify-between items-center">

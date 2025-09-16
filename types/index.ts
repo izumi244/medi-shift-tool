@@ -16,6 +16,16 @@ export type RequestStatus = '申請中' | '承認' | '却下'
 
 // ==================== データ型定義 ====================
 
+// シフトパターン
+export interface ShiftPattern {
+  id: string
+  name: string
+  start_time: string
+  end_time: string
+  break_minutes: number
+  color: string // 表示用の色 (例: '#e0e7ff')
+}
+
 // 従業員
 export interface Employee {
   id: string

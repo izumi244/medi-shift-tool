@@ -20,7 +20,7 @@ interface LeaveRequest {
   id: string;
   employee_id: string;
   date: string;
-  leave_type: '希望休' | '有休' | '忌引' | '病欠' | 'その他';
+  leave_type: '希望休' | '有休' | '忌引' | '病欠' | 'その他' | '出勤可能';
   reason: string;
   status: RequestStatus;
   created_at: string;
@@ -39,12 +39,13 @@ const LeavePage: React.FC = () => {
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [filterStatus, setFilterStatus] = useState<RequestStatus | ''>('');
   const [filterEmployee, setFilterEmployee] = useState('');
+  const [requestType, setRequestType] = useState<'leave' | 'work'>('leave');
 
   // フォームデータ
   const [formData, setFormData] = useState({
     employee_id: '',
     date: '',
-    leave_type: '希望休' as const,
+    leave_type: '希望休' as LeaveRequest['leave_type'],
     reason: ''
   });
 
@@ -91,6 +92,16 @@ const LeavePage: React.FC = () => {
       created_at: '2025-08-10T16:45:00Z',
       updated_at: '2025-08-11T09:20:00Z',
       rejection_reason: '人員不足のため'
+    },
+    {
+      id: '4',
+      employee_id: '4',
+      date: '2025-08-10', // 本来休みの日曜日
+      leave_type: '出勤可能',
+      reason: '急な欠員対応可能',
+      status: '承認',
+      created_at: '2025-08-05T11:00:00Z',
+      updated_at: '2025-08-05T11:00:00Z'
     }
   ]);
 
@@ -150,22 +161,30 @@ const LeavePage: React.FC = () => {
     ));
   };
 
-  // 新規申請を追加
-  const addLeaveRequest = () => {
-    const newRequest: LeaveRequest = {
-      id: (leaveRequests.length + 1).toString(),
-      ...formData,
-      status: '申請中',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setLeaveRequests(prev => [...prev, newRequest]);
+  const openModal = () => {
+    setRequestType('leave');
     setFormData({
       employee_id: '',
       date: '',
       leave_type: '希望休',
       reason: ''
     });
+    setIsModalOpen(true);
+  };
+
+  // 新規申請を追加
+  const addRequest = () => {
+    const finalLeaveType = requestType === 'work' ? '出勤可能' : formData.leave_type;
+
+    const newRequest: LeaveRequest = {
+      id: (leaveRequests.length + 1).toString(),
+      ...formData,
+      leave_type: finalLeaveType,
+      status: '申請中',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    setLeaveRequests(prev => [...prev, newRequest]);
     setIsModalOpen(false);
   };
 
@@ -204,12 +223,13 @@ const LeavePage: React.FC = () => {
     '却下': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', icon: XCircle }
   };
 
-  const leaveTypeColors = {
+  const leaveTypeColors: Record<LeaveRequest['leave_type'], string> = {
     '希望休': 'bg-blue-100 text-blue-800',
     '有休': 'bg-green-100 text-green-800',
     '忌引': 'bg-gray-100 text-gray-800',
     '病欠': 'bg-red-100 text-red-800',
-    'その他': 'bg-purple-100 text-purple-800'
+    'その他': 'bg-purple-100 text-purple-800',
+    '出勤可能': 'bg-cyan-100 text-cyan-800'
   };
 
   return (
@@ -218,10 +238,10 @@ const LeavePage: React.FC = () => {
       <div className="border-b-2 border-gray-100 pb-6">
         <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
           <Calendar className="w-8 h-8" />
-          希望休管理
+          各種申請管理
         </h2>
         <p className="text-lg text-gray-600">
-          スタッフの希望休申請・承認管理
+          スタッフの希望休や出勤可能日などの申請・承認を管理します
         </p>
       </div>
 
@@ -357,7 +377,7 @@ const LeavePage: React.FC = () => {
           )}
 
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openModal}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
           >
             <Plus className="w-5 h-5" />
@@ -507,7 +527,7 @@ const LeavePage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-indigo-600">新規希望休申請</h3>
+              <h3 className="text-2xl font-bold text-indigo-600">新規申請</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -517,6 +537,14 @@ const LeavePage: React.FC = () => {
             </div>
 
             <form className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">申請種別</label>
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button type="button" onClick={() => setRequestType('leave')} className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${requestType === 'leave' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600'}`}>希望休申請</button>
+                  <button type="button" onClick={() => setRequestType('work')} className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${requestType === 'work' ? 'bg-white text-cyan-600 shadow-sm' : 'text-gray-600'}`}>出勤可能申請</button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   従業員 <span className="text-red-500">*</span>
@@ -547,33 +575,35 @@ const LeavePage: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  種類 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.leave_type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, leave_type: e.target.value as any }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                >
-                  <option value="希望休" className="text-gray-800">希望休</option>
-                  <option value="有休" className="text-gray-800">有休</option>
-                  <option value="忌引" className="text-gray-800">忌引</option>
-                  <option value="病欠" className="text-gray-800">病欠</option>
-                  <option value="その他" className="text-gray-800">その他</option>
-                </select>
-              </div>
+              {requestType === 'leave' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    種類 <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.leave_type}
+                    onChange={(e) => setFormData(prev => ({ ...prev, leave_type: e.target.value as any }))}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                  >
+                    <option value="希望休" className="text-gray-800">希望休</option>
+                    <option value="有休" className="text-gray-800">有休</option>
+                    <option value="忌引" className="text-gray-800">忌引</option>
+                    <option value="病欠" className="text-gray-800">病欠</option>
+                    <option value="その他" className="text-gray-800">その他</option>
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  理由
+                  {requestType === 'leave' ? '理由' : '補足事項'}
                 </label>
                 <textarea
                   value={formData.reason}
                   onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                   rows={3}
                   className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors resize-none text-gray-800"
-                  placeholder="例：家族の用事、旅行など"
+                  placeholder={requestType === 'leave' ? '例：家族の用事、旅行など' : '例：急な欠員が出た場合、対応可能です'}
                 />
               </div>
 
@@ -587,7 +617,7 @@ const LeavePage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={addLeaveRequest}
+                  onClick={addRequest}
                   disabled={!formData.employee_id || !formData.date}
                   className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300"
                 >
@@ -604,7 +634,7 @@ const LeavePage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-indigo-600">希望休詳細</h3>
+              <h3 className="text-2xl font-bold text-indigo-600">申請詳細</h3>
               <button
                 onClick={() => setSelectedLeave(null)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -634,7 +664,7 @@ const LeavePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">理由</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">{selectedLeave.leave_type === '出勤可能' ? '補足事項' : '理由'}</label>
                 <p className="text-gray-900">{selectedLeave.reason}</p>
               </div>
 

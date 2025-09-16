@@ -2,12 +2,17 @@
 
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X } from 'lucide-react';
+import type { ShiftPattern } from '@/types';
 
+// --- Component-Specific Types ---
 interface ShiftAssignment {
-  am?: string;
-  pm?: string;
-  timeInfo: string;
-  isClinicOnly?: boolean;
+  am?: string; // workplace
+  pm?: string; // workplace
+  patternId?: string;
+  customStartTime?: string;
+  customEndTime?: string;
+  isRest?: boolean;
+  restReason?: string; // '休み' | '有休' | '希望休'
 }
 
 interface Employee {
@@ -16,6 +21,8 @@ interface Employee {
   type: string;
   employmentType: 'full-time' | 'part-time';
   position: 'nurse' | 'technician';
+  assignable_shift_pattern_ids: string[];
+  day_constraints: { if: string; then: string; }[]; // 曜日制約
 }
 
 interface ShiftData {
@@ -24,122 +31,152 @@ interface ShiftData {
   };
 }
 
+// --- Main Component ---
 const ShiftPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1)); // 2025年8月
   const [editMode, setEditMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
-  const [editValues, setEditValues] = useState({am: '', pm: '', timeInfo: '', isRest: false});
-
-  // サンプル従業員データ
-  const employees: Employee[] = [
-    { id: '1', name: '看護師A', type: '常勤・看護師', employmentType: 'full-time', position: 'nurse' },
-    { id: '2', name: 'パート看護師A', type: 'パート・看護師', employmentType: 'part-time', position: 'nurse' },
-    { id: '3', name: '臨床検査技師A', type: '常勤・臨床検査技師', employmentType: 'full-time', position: 'technician' }
-  ];
-
-  // ルールに基づいたサンプルシフトデータ（1週間分）
-  const [shiftData, setShiftData] = useState<ShiftData>({
-    '1': { // 看護師A（常勤）
-      1: { am: 'D', pm: '処', timeInfo: '早番' }, // 金曜日
-      2: { am: '処', pm: 'CF中', timeInfo: '遅番' }, // 土曜日
-      // 3: 日曜日は完全に休み（データなし）
-      4: { am: 'CF中', pm: '処', timeInfo: '早番' }, // 月曜日
-      5: { am: 'D', pm: 'CF外', timeInfo: '遅番' }, // 火曜日
-      6: { am: '健診G', pm: '健診', timeInfo: '早番', isClinicOnly: true }, // 水曜日：健診棟のみ
-      15: { timeInfo: '有休' }
-    },
-    '2': { // パート看護師A
-      1: { am: 'D', timeInfo: '9:00-15:00' }, // 金曜日
-      2: { am: '処', timeInfo: '9:00-15:00' }, // 土曜日
-      // 3: 日曜日は完全に休み（データなし）
-      4: { am: 'CF外', timeInfo: '9:00-15:00' }, // 月曜日
-      5: { pm: 'D', timeInfo: '13:00-18:00' }, // 火曜日
-      6: { timeInfo: '休み' }, // 水曜日：クリニック休診のため休み
-      20: { timeInfo: '希望休' }
-    },
-    '3': { // 臨床検査技師A
-      1: { am: '健診G', pm: '健診', timeInfo: '早番' }, // 金曜日
-      2: { am: 'CF洗浄', pm: '健診G', timeInfo: '早番' }, // 土曜日
-      // 3: 日曜日は完全に休み（データなし）
-      4: { am: '健診G', pm: '健診', timeInfo: '早番' }, // 月曜日
-      5: { am: '健診', pm: 'CF洗浄', timeInfo: '遅番' }, // 火曜日
-      6: { am: 'CF洗浄', pm: '健診G', timeInfo: '遅番', isClinicOnly: true }, // 水曜日：健診棟のみ
-      25: { timeInfo: '有休' }
-    }
+  
+  const [editValues, setEditValues] = useState({
+    editType: 'pattern' as 'pattern' | 'custom' | 'rest',
+    am: '',
+    pm: '',
+    patternId: '',
+    customStartTime: '',
+    customEndTime: '',
+    restReason: '休み'
   });
 
-  // 月の情報を取得
+  // --- Mock Data ---
+  const shiftPatterns: ShiftPattern[] = [
+    { id: '1', name: '早番', start_time: '08:30', end_time: '17:30', break_minutes: 60, color: '#e0f2fe' },
+    { id: '2', name: '遅番', start_time: '09:00', end_time: '18:30', break_minutes: 60, color: '#dcfce7' },
+    { id: '3', name: '通し番', start_time: '08:30', end_time: '18:30', break_minutes: 60, color: '#fef9c3' },
+    { id: '4', name: 'パート(AM)', start_time: '09:00', end_time: '15:00', break_minutes: 0, color: '#fce7f3' },
+    { id: '5', name: 'パート(PM)', start_time: '13:00', end_time: '18:00', break_minutes: 0, color: '#f3e8ff' },
+  ];
+
+  const employees: Employee[] = [
+    { id: '1', name: '看護師A', type: '常勤・看護師', employmentType: 'full-time', position: 'nurse', assignable_shift_pattern_ids: ['1', '2', '3'], day_constraints: [{ if: '水', then: '木' }] },
+    { id: '2', name: 'パート看護師A', type: 'パート・看護師', employmentType: 'part-time', position: 'nurse', assignable_shift_pattern_ids: ['4', '5'], day_constraints: [] },
+    { id: '3', name: '臨床検査技師A', type: '常勤・臨床検査技師', employmentType: 'full-time', position: 'technician', assignable_shift_pattern_ids: ['1', '2'], day_constraints: [] }
+  ];
+
+  const [shiftData, setShiftData] = useState<ShiftData>({
+    '1': { // 看護師A
+      1: { am: 'D', pm: '処', patternId: '1' },
+      2: { am: '処', pm: 'CF中', patternId: '2' },
+      3: { am: '健診G', pm: '健診', patternId: '1' }, // 水曜出勤のデータを追加
+      5: { am: 'D', pm: 'CF外', patternId: '2' },
+      6: { am: '健診G', pm: '健診', patternId: '1' },
+      15: { isRest: true, restReason: '有休' }
+    },
+    '2': { // パート看護師A
+      1: { am: 'D', patternId: '4' },
+      2: { am: '処', patternId: '4' },
+      4: { am: 'CF外', patternId: '4' },
+      5: { pm: 'D', patternId: '5' },
+      6: { isRest: true, restReason: '休み' },
+      20: { isRest: true, restReason: '希望休' }
+    },
+    '3': { // 臨床検査技師A
+      1: { am: '健診G', pm: '健診', patternId: '1' },
+      2: { am: 'CF洗浄', pm: '健診G', patternId: '1' },
+      4: { am: '健診G', pm: '健診', patternId: '1' },
+      5: { am: '健診', pm: 'CF洗浄', patternId: '2' },
+      6: { am: 'CF洗浄', pm: '健診G', patternId: '2' },
+      25: { isRest: true, restReason: '有休' }
+    }
+  });
+  // --- End Mock Data ---
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthName = currentDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // 日付配列を生成
   const generateDays = () => {
-    const days = [];
+    const daysArray = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dayOfWeek = date.toLocaleDateString('ja-JP', { weekday: 'short' });
-      days.push({ 
-        day, 
-        dayOfWeek, 
-        isWednesday: dayOfWeek === '水',
-        isSunday: dayOfWeek === '日'
-      });
+      daysArray.push({ day, dayOfWeek, isWednesday: dayOfWeek === '水', isSunday: dayOfWeek === '日' });
     }
-    return days;
+    return daysArray;
   };
-
   const days = generateDays();
 
-  // 編集機能のハンドラー
   const handleCellClick = (employeeId: string, day: number, employeeName: string) => {
     if (!editMode) return;
+
+    // --- Day Constraint Validation ---
+    const employee = employees.find(e => e.id === employeeId);
+    const dayInfo = days[day - 1];
+
+    if (employee && employee.day_constraints && employee.day_constraints.length > 0 && dayInfo) {
+      for (const constraint of employee.day_constraints) {
+        // constraint.then (e.g., '木') matches the clicked day's weekday
+        if (constraint.then === dayInfo.dayOfWeek) {
+          const previousDayInfo = days[day - 2]; // Day before the clicked day
+          // Check if the previous day exists and its weekday matches the 'if' condition
+          if (previousDayInfo && previousDayInfo.dayOfWeek === constraint.if) {
+            const previousDayShift = shiftData[employeeId]?.[previousDayInfo.day];
+            // Check if there was a shift on the previous day (not a rest day)
+            if (previousDayShift && !previousDayShift.isRest) {
+              alert(`${employee.name}は「${constraint.if}曜出勤後は${constraint.then}曜休み」の制約があります。`);
+              return; // Prevent opening the edit modal
+            }
+          }
+        }
+      }
+    }
+    // --- End Validation ---
     
     const shift = shiftData[employeeId]?.[day];
-    const isRest = !shift?.am && !shift?.pm && (shift?.timeInfo === '休み' || shift?.timeInfo === '有休' || shift?.timeInfo === '希望休');
-    
     setEditingCell({employeeId, day, employeeName});
+
+    let editType: 'pattern' | 'custom' | 'rest' = 'pattern';
+    if (shift?.isRest) editType = 'rest';
+    else if (shift?.customStartTime) editType = 'custom';
+
     setEditValues({
+      editType: editType,
       am: shift?.am || '',
       pm: shift?.pm || '',
-      timeInfo: shift?.timeInfo || '',
-      isRest: isRest
+      patternId: shift?.patternId || '',
+      customStartTime: shift?.customStartTime || '',
+      customEndTime: shift?.customEndTime || '',
+      restReason: shift?.restReason || '休み'
     });
     setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = () => {
     if (!editingCell) return;
-    
-    const {employeeId, day} = editingCell;
-    
-    // 休みが選択された場合
-    if (editValues.isRest) {
-      setShiftData(prev => ({
-        ...prev,
-        [employeeId]: {
-          ...prev[employeeId],
-          [day]: {
-            timeInfo: '休み'
-          }
-        }
-      }));
+    const { employeeId, day } = editingCell;
+
+    let newShift: ShiftAssignment = {};
+    if (editValues.editType === 'rest') {
+      newShift = { isRest: true, restReason: editValues.restReason };
     } else {
-      // 通常勤務の場合
-      setShiftData(prev => ({
-        ...prev,
-        [employeeId]: {
-          ...prev[employeeId],
-          [day]: {
-            am: editValues.am,
-            pm: editValues.pm,
-            timeInfo: editValues.timeInfo
-          }
-        }
-      }));
+      newShift.am = editValues.am;
+      newShift.pm = editValues.pm;
+      if (editValues.editType === 'pattern') {
+        newShift.patternId = editValues.patternId;
+      } else {
+        newShift.customStartTime = editValues.customStartTime;
+        newShift.customEndTime = editValues.customEndTime;
+      }
     }
+
+    setShiftData(prev => ({
+      ...prev,
+      [employeeId]: {
+        ...prev[employeeId],
+        [day]: newShift
+      }
+    }));
     
     handleCloseModal();
   };
@@ -147,95 +184,45 @@ const ShiftPage: React.FC = () => {
   const handleCloseModal = () => {
     setIsEditModalOpen(false);
     setEditingCell(null);
-    setEditValues({am: '', pm: '', timeInfo: '', isRest: false});
   };
 
-  // 月を変更
   const changeMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(month - 1);
-    } else {
-      newDate.setMonth(month + 1);
-    }
+    newDate.setMonth(month + (direction === 'prev' ? -1 : 1));
     setCurrentDate(newDate);
   };
 
-  // 文字数に応じた最適なフォントサイズを計算
-  const getOptimalFontSize = (text: string, isWorkplace: boolean = true) => {
-    const length = text.length;
-    
-    if (isWorkplace) {
-      // 配置情報（上段）のサイズ調整
-      if (length >= 10) return 'text-xs transform scale-[0.4] origin-center leading-none whitespace-nowrap';
-      if (length >= 8) return 'text-xs transform scale-[0.5] origin-center leading-none whitespace-nowrap';
-      if (length >= 6) return 'text-xs transform scale-[0.65] origin-center leading-none whitespace-nowrap';
-      if (length >= 4) return 'text-xs transform scale-[0.8] origin-center leading-none whitespace-nowrap';
-      return 'text-xs leading-none whitespace-nowrap';
-    } else {
-      // 時間情報（下段）のサイズ調整
-      if (length >= 12) return 'text-xs transform scale-[0.5] origin-center leading-none whitespace-nowrap';
-      if (length >= 8) return 'text-xs transform scale-[0.65] origin-center leading-none whitespace-nowrap';
-      if (length >= 6) return 'text-xs transform scale-[0.75] origin-center leading-none whitespace-nowrap';
-      return 'text-xs leading-none whitespace-nowrap';
+  const getShiftTimeLabel = (shift: ShiftAssignment): string => {
+    if (shift.isRest) return shift.restReason || '休み';
+    if (shift.patternId) {
+      const pattern = shiftPatterns.find(p => p.id === shift.patternId);
+      return pattern ? `${pattern.start_time}~${pattern.end_time}` : '不明';
     }
+    if (shift.customStartTime && shift.customEndTime) {
+      return `${shift.customStartTime}~${shift.customEndTime}`;
+    }
+    return '';
   };
 
-  // シフトセルをレンダリング
   const renderShiftCell = (employee: Employee, day: number, dayInfo: { isSunday: boolean, isWednesday: boolean }) => {
     const shift = shiftData[employee.id]?.[day];
-    
-    if (!shift) {
-      return (
-        <td key={day} className={`border-r border-gray-200 h-20 p-0.5 align-top ${
-          dayInfo.isSunday ? 'bg-pink-100' :
-          dayInfo.isWednesday ? 'bg-green-100' : ''
-        } ${editMode ? 'cursor-pointer hover:bg-yellow-50' : ''}`}
-        onClick={() => handleCellClick(employee.id, day, employee.name)}>
-          <div className="h-full flex flex-col"></div>
-        </td>
-      );
+    const cellClass = `border-r border-gray-200 h-20 p-0.5 align-top ${dayInfo.isSunday ? 'bg-pink-50' : dayInfo.isWednesday ? 'bg-green-50' : ''} ${editMode ? 'cursor-pointer hover:bg-yellow-100' : ''}`;
+
+    if (!shift || (!shift.am && !shift.pm && !shift.isRest)) {
+      return <td key={day} className={cellClass} onClick={() => handleCellClick(employee.id, day, employee.name)}></td>;
     }
 
-    let cellClass = "border-r border-gray-200 h-20 p-0.5 align-top ";
-    if (dayInfo.isSunday) {
-      cellClass += "bg-pink-100 ";
-    } else if (dayInfo.isWednesday) {
-      cellClass += "bg-green-100 ";
-    }
-    if (editMode) {
-      cellClass += "cursor-pointer hover:bg-yellow-50 ";
-    }
-
-    // 配置情報を結合
+    const timeLabel = getShiftTimeLabel(shift);
     const cellContent = (shift.am || '') + (shift.am && shift.pm ? '/' : '') + (shift.pm || '');
-    const workplaceFontSize = getOptimalFontSize(cellContent, true);
-    const timeFontSize = getOptimalFontSize(shift.timeInfo, false);
 
     return (
       <td key={day} className={cellClass} onClick={() => handleCellClick(employee.id, day, employee.name)}>
-        {/* 休みの場合：セル全体結合 */}
-        {(!shift.am && !shift.pm && (shift.timeInfo === '休み' || shift.timeInfo === '有休' || shift.timeInfo === '希望休')) ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center text-red-600 font-medium text-sm">
-              休
-            </div>
-          </div>
+        {shift.isRest ? (
+          <div className="h-full flex items-center justify-center text-center text-red-600 font-medium text-sm">{timeLabel}</div>
         ) : (
-          /* 通常勤務の場合：上下分割 */
-          <div className="h-full flex flex-col">
-            {/* 上段：配置情報 - 高さ統一 */}
-            <div className="h-10 flex items-center justify-center px-0.5 overflow-hidden">
-              <div className={`text-gray-800 font-medium text-center ${workplaceFontSize}`}>
-                {cellContent}
-              </div>
-            </div>
-            {/* 下段：時間情報 */}
-            <div className="h-10 flex items-center justify-center border-t border-gray-200 px-0.5 overflow-hidden">
-              <div className={`text-gray-600 text-center ${timeFontSize}`}>
-                {shift.timeInfo}
-              </div>
-            </div>
+          <div className="h-full flex flex-col text-xs text-center">
+            <div className="h-10 flex items-center justify-center px-0.5 overflow-hidden font-medium text-gray-800">{cellContent}</div>
+            <div className="h-10 flex items-center justify-center border-t border-gray-200 px-0.5 overflow-hidden text-gray-600">{timeLabel}</div>
           </div>
         )}
       </td>
@@ -244,241 +231,119 @@ const ShiftPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* ページヘッダー（境界線削除） */}
       <div className="pb-6">
-        <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3">
-          <ClipboardList className="w-8 h-8" />
-          シフト表示
-        </h2>
-        <p className="text-lg text-gray-600">
-          作成されたシフト表の確認・編集
-        </p>
+        <h2 className="text-3xl font-bold text-indigo-600 mb-2 flex items-center gap-3"><ClipboardList className="w-8 h-8" />シフト表示</h2>
+        <p className="text-lg text-gray-600">作成されたシフト表の確認・編集</p>
       </div>
 
-      {/* シフト表コンテンツ */}
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-1">
-        <div className="w-full mx-auto">
-          {/* ヘッダー */}
-          <div className="flex items-center justify-between mb-2 bg-white p-1 rounded shadow-sm">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => changeMonth('prev')}
-                className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors text-gray-700"
-              >
-                <ChevronLeft className="w-3 h-3 text-gray-700" />
-                前月
-              </button>
-              <h1 className="text-xl font-bold text-gray-800">
-                {monthName}
-              </h1>
-              <button
-                onClick={() => changeMonth('next')}
-                className="flex items-center gap-1 px-2 py-1 border border-gray-300 bg-white rounded text-xs hover:bg-gray-50 transition-colors text-gray-700"
-              >
-                次月
-                <ChevronRight className="w-3 h-3 text-gray-700" />
-              </button>
+      <div className="bg-white p-2 rounded-lg shadow-md">
+        <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+                <button onClick={() => changeMonth('prev')} className="p-2 rounded-md hover:bg-gray-100"><ChevronLeft className="w-5 h-5 text-gray-600" /></button>
+                <h3 className="text-xl font-bold text-gray-800">{monthName}</h3>
+                <button onClick={() => changeMonth('next')} className="p-2 rounded-md hover:bg-gray-100"><ChevronRight className="w-5 h-5 text-gray-600" /></button>
             </div>
-            
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setEditMode(!editMode)}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                  editMode
-                    ? 'bg-orange-500 text-white hover:bg-orange-600'
-                    : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                }`}
-              >
-                <Edit3 className="w-3 h-3" />
-                {editMode ? '編集中' : '編集モード'}
-              </button>
-              <button className="flex items-center gap-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors">
-                <Download className="w-3 h-3" />
-                PDF出力
-              </button>
-              <button className="flex items-center gap-1 px-2 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors">
-                <RefreshCw className="w-3 h-3" />
-                再生成
-              </button>
+            <div className="flex items-center gap-2">
+                <button onClick={() => setEditMode(!editMode)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${editMode ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-700'}`}><Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}</button>
+                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
             </div>
-          </div>
+        </div>
 
-          {/* シフト表 */}
-          <div className="bg-white rounded shadow-sm overflow-hidden">
-            <div className="w-full">
-              <table className="w-full border-collapse table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 w-8 text-xs">
-                      {/* 空欄 */}
-                    </th>
-                    {days.map(({ day, dayOfWeek, isWednesday, isSunday }) => (
-                      <th
-                        key={day}
-                        className={`border-r border-gray-200 p-0.5 text-center font-medium text-gray-700 text-xs w-auto ${
-                          isSunday ? 'bg-pink-100' :
-                          isWednesday ? 'bg-green-100' : ''
-                        }`}
-                        style={{ width: `${(100 - 6) / daysInMonth}%` }}
-                      >
-                        <div className="text-xs">{day}</div>
-                        <div className="text-xs">({dayOfWeek})</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* 備考行 */}
-                  <tr className="border-b border-gray-200">
-                    <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
-                      <div className="text-xs font-medium text-gray-800 text-center">
-                        備考
-                      </div>
-                    </td>
-                    {days.map(({ day, isSunday, isWednesday }) => (
-                      <td key={day} className={`border-r border-gray-200 h-10 p-0.5 align-top ${
-                        isSunday ? 'bg-pink-100' :
-                        isWednesday ? 'bg-green-100' : ''
-                      }`}>
-                        {/* 空欄 */}
-                      </td>
-                    ))}
-                  </tr>
-                  {employees.map((employee) => (
-                    <tr key={employee.id} className="border-b border-gray-200">
-                      <td className="border-r border-gray-200 p-0.5 text-center w-8 bg-gray-50">
-                        <div className="text-xs font-medium text-gray-800 text-center">
-                          {employee.name.slice(0, 4)}
-                        </div>
-                      </td>
-                      {days.map(({ day, isSunday, isWednesday }) => renderShiftCell(employee, day, { isSunday, isWednesday }))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse table-fixed min-w-[1200px]">
+            <thead>
+              <tr>
+                <th className="w-28 border-r border-gray-200 p-2 text-sm font-semibold text-gray-700 bg-gray-50">従業員</th>
+                {days.map(({ day, dayOfWeek, isWednesday, isSunday }) => (
+                  <th key={day} className={`p-1 text-center font-medium text-gray-700 text-xs w-20 ${isSunday ? 'bg-pink-50' : isWednesday ? 'bg-green-50' : 'bg-gray-50'}`}>
+                    <div>{day}</div><div>({dayOfWeek})</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((employee) => (
+                <tr key={employee.id} className="border-b border-gray-200">
+                  <td className="border-r border-gray-200 p-2 text-sm font-semibold text-gray-800 bg-gray-50 text-left">{employee.name}</td>
+                  {days.map(({ day, isSunday, isWednesday }) => renderShiftCell(employee, day, { isSunday, isWednesday }))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* 編集モーダル */}
       {isEditModalOpen && editingCell && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-indigo-600">シフト編集</h3>
-              <button
-                onClick={handleCloseModal}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <div className="text-sm text-gray-600 mb-2">
-                {editingCell.employeeName} - {currentDate.getMonth() + 1}月{editingCell.day}日
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-indigo-600">シフト編集</h3>
+                <p className="text-gray-600">{editingCell.employeeName} - {month + 1}月{editingCell.day}日</p>
               </div>
+              <button onClick={handleCloseModal} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
             </div>
 
             <form className="space-y-4">
-              {/* 勤務・休み選択 */}
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">午前配置</label>
+                      <input type="text" value={editValues.am} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: D, 処" />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">午後配置</label>
+                      <input type="text" value={editValues.pm} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: 処, 健診" />
+                  </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  勤務形態
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">勤務タイプ</label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="workType"
-                      checked={!editValues.isRest}
-                      onChange={() => setEditValues(prev => ({ ...prev, isRest: false }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-200"
-                    />
-                    <span className="text-gray-700">勤務</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="workType"
-                      checked={editValues.isRest}
-                      onChange={() => setEditValues(prev => ({ ...prev, isRest: true, am: '', pm: '', timeInfo: '休み' }))}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-200"
-                    />
-                    <span className="text-gray-700">休み</span>
-                  </label>
+                  <label className="flex items-center gap-2"><input type="radio" value="pattern" checked={editValues.editType === 'pattern'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />パターン</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="custom" checked={editValues.editType === 'custom'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />直接入力</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="rest" checked={editValues.editType === 'rest'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />休み</label>
                 </div>
               </div>
 
-              {/* 勤務の場合のみ表示 */}
-              {!editValues.isRest && (
-                <>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      午前配置
-                    </label>
-                    <input
-                      type="text"
-                      value={editValues.am}
-                      onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))}
-                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                      placeholder="例：D、処、CF中など"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      午後配置
-                    </label>
-                    <input
-                      type="text"
-                      value={editValues.pm}
-                      onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))}
-                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                      placeholder="例：処、CF外、健診など"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      時間情報
-                    </label>
-                    <input
-                      type="text"
-                      value={editValues.timeInfo}
-                      onChange={(e) => setEditValues(prev => ({ ...prev, timeInfo: e.target.value }))}
-                      className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                      placeholder="例：早番、遅番、9:00-15:00"
-                    />
-                  </div>
-                </>
+              {editValues.editType === 'pattern' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">シフトパターン</label>
+                  <select value={editValues.patternId} onChange={(e) => setEditValues(p => ({...p, patternId: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                    <option value="">パターンを選択...</option>
+                    {shiftPatterns.filter(p => employees.find(e => e.id === editingCell.employeeId)?.assignable_shift_pattern_ids.includes(p.id)).map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.start_time}-{p.end_time})</option>
+                    ))}
+                  </select>
+                </div>
               )}
 
-              {/* 休みの場合のメッセージ */}
-              {editValues.isRest && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 text-red-700">
-                    <span className="text-sm font-medium">この日は休みに設定されます</span>
+              {editValues.editType === 'custom' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">開始時刻</label>
+                    <input type="time" value={editValues.customStartTime} onChange={(e) => setEditValues(p => ({...p, customStartTime: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">終了時刻</label>
+                    <input type="time" value={editValues.customEndTime} onChange={(e) => setEditValues(p => ({...p, customEndTime: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl" />
+                  </div>
+                </div>
+              )}
+
+              {editValues.editType === 'rest' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">理由</label>
+                  <select value={editValues.restReason} onChange={(e) => setEditValues(p => ({...p, restReason: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                    <option>休み</option>
+                    <option>有休</option>
+                    <option>希望休</option>
+                  </select>
                 </div>
               )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveEdit}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300"
-                >
-                  保存
-                </button>
+                <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold">キャンセル</button>
+                <button type="button" onClick={handleSaveEdit} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold">保存</button>
               </div>
             </form>
           </div>
