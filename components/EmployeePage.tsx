@@ -165,7 +165,7 @@ const EmployeePage: React.FC = () => {
     assignable_workplaces_by_day: { 
       '月': [], '火': [], '水': [], '木': [], '金': [], '土': [] 
     } as Record<string, FacilityType[]>,
-    assignable_shift_pattern_ids: [],
+    assignable_shift_pattern_ids: [] as string[],
     day_constraints: [] as { if: string; then: string; }[]
   });
 

@@ -8,7 +8,8 @@ import {
   Bot, 
   ClipboardList, 
   Rocket,
-  Play
+  Play,
+  Scissors
 } from 'lucide-react'
 
 interface ManagementCard {
@@ -53,6 +54,14 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
       description: 'AM/PM分割、14箇所の配置設定',
       gradientFrom: 'from-green-500',
       gradientTo: 'to-green-600'
+    },
+    {
+      id: 'shift-pattern',
+      icon: <Scissors className="w-12 h-12" />,
+      title: 'シフトパターン管理',
+      description: '早番・遅番などの勤務パターンを設定',
+      gradientFrom: 'from-pink-500',
+      gradientTo: 'to-pink-600'
     },
     {
       id: 'leave',
