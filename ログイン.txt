@@ -1,0 +1,829 @@
+# メディ様シフト作成ツール - 認証システム実装ガイド
+
+## プロジェクト概要
+
+### 背景
+- **プロジェクト名**: メディ様専用シフト作成ツール
+- **技術スタック**: Next.js 14 + TypeScript + Tailwind CSS + Supabase
+- **現状**: フロントエンドプロトタイプ完成、認証システム未実装
+- **目的**: 医療機関向けAI活用シフト管理システム
+
+### 現在の実装状況
+**完成済み（8つのコンポーネント）:**
+1. `components/MainLayout.tsx` - メインレイアウト
+2. `components/DataInputPage.tsx` - データ入力ページ
+3. `components/EmployeePage.tsx` - 従業員管理
+4. `components/WorkplacePage.tsx` - 配置場所管理
+5. `components/ShiftPatternPage.tsx` - シフトパターン管理
+6. `components/LeavePage.tsx` - 希望休管理
+7. `components/ConstraintsPage.tsx` - AI制約条件管理
+8. `components/ShiftPage.tsx` - シフト表示
+
+**設定ファイル:**
+- package.json, tsconfig.json, tailwind.config.js, next.config.js
+- .eslintrc.json, postcss.config.js, app/globals.css
+- app/layout.tsx, app/page.tsx, types/index.ts
+
+## 認証システム要件
+
+### ユーザー種別・権限
+1. **管理者** (`admin`)
+   - 全機能アクセス可能
+   - シフト作成・編集・従業員管理
+
+2. **従業員** (`employee`)
+   - 希望休申請（自分の分のみ）
+   - シフト閲覧（全体表示）
+   - アクセス不可ページ: 従業員管理、配置場所管理、シフトパターン管理、AI制約条件管理
+
+3. **開発会社** (`developer`)
+   - 管理者と同じ権限
+
+### 認証仕様
+- **ログイン形式**: ユーザーID（小文字ローマ字5文字+数字3桁） + パスワード（同形式）
+- **例**: `tanaka123` / `yamada456`
+- **セッション時間**: 1時間
+- **ログイン状態保持**: チェック時2週間
+- **失敗制限**: なし
+- **セキュリティ**: 通常認証のみ
+
+### UI/UX仕様
+- **ログインページ**: シンプル、ロゴ・施設名なし
+- **ログイン後遷移**: 全ユーザー → シフト作成ページ（DataInputPage）
+- **デザイン**: 既存の管理画面と統一感
+- **レスポンシブ**: スマホ対応必須
+
+### 将来拡張性
+- マルチテナント対応準備（複数クリニック対応）
+- 現在は単一施設、将来的にサブドメイン方式へ移行可能
+
+## 実装タスク
+
+### Phase 1: 新規ファイル作成
+
+#### 1. 認証関連型定義
+**ファイル**: `types/auth.ts`
+```typescript
+export type UserRole = 'admin' | 'employee' | 'developer'
+
+export interface User {
+  id: string
+  user_id: string        // tanaka123 形式
+  name: string
+  role: UserRole
+  created_at: string
+  last_login?: string
+}
+
+export interface LoginCredentials {
+  user_id: string
+  password: string
+  remember_me: boolean
+}
+
+export interface AuthState {
+  user: User | null
+  isLoading: boolean
+  isAuthenticated: boolean
+}
+
+export interface SessionData {
+  user: User
+  expires_at: number
+  remember_me: boolean
+}
+```
+
+#### 2. 認証ロジック
+**ファイル**: `lib/auth.ts`
+```typescript
+import { LoginCredentials, User } from '@/types/auth'
+
+// バリデーション関数
+export function validateUserId(userId: string): boolean {
+  // 小文字ローマ字5文字+数字3桁
+  const regex = /^[a-z]{5}[0-9]{3}$/
+  return regex.test(userId)
+}
+
+export function validatePassword(password: string): boolean {
+  // 同じ形式
+  return validateUserId(password)
+}
+
+// 認証関数（現在はモックデータ）
+export async function authenticate(credentials: LoginCredentials): Promise<User | null> {
+  // バリデーション
+  if (!validateUserId(credentials.user_id) || !validatePassword(credentials.password)) {
+    throw new Error('ユーザーIDまたはパスワードの形式が正しくありません')
+  }
+
+  // モックユーザーデータ（実装時はSupabase接続）
+  const mockUsers: User[] = [
+    {
+      id: '1',
+      user_id: 'admin123',
+      name: '管理者',
+      role: 'admin',
+      created_at: '2025-01-01T00:00:00Z'
+    },
+    {
+      id: '2', 
+      user_id: 'nurse456',
+      name: '看護師A',
+      role: 'employee',
+      created_at: '2025-01-01T00:00:00Z'
+    },
+    {
+      id: '3',
+      user_id: 'devel789',
+      name: '開発者',
+      role: 'developer', 
+      created_at: '2025-01-01T00:00:00Z'
+    }
+  ]
+
+  // モック認証（ユーザーIDとパスワードが同じ場合に成功）
+  const user = mockUsers.find(u => u.user_id === credentials.user_id)
+  if (user && credentials.user_id === credentials.password) {
+    return user
+  }
+
+  throw new Error('ユーザーIDまたはパスワードが正しくありません')
+}
+
+// ログアウト
+export async function logout(): Promise<void> {
+  // TODO: 実際のAPI呼び出し（Supabase実装時）
+  console.log('Logout called')
+}
+```
+
+#### 3. セッション管理
+**ファイル**: `lib/session.ts`
+```typescript
+import { User, SessionData } from '@/types/auth'
+
+const SESSION_DURATION = 60 * 60 * 1000        // 1時間
+const REMEMBER_DURATION = 14 * 24 * 60 * 60 * 1000  // 2週間
+
+export function createSession(user: User, rememberMe: boolean): SessionData {
+  const duration = rememberMe ? REMEMBER_DURATION : SESSION_DURATION
+  
+  return {
+    user,
+    expires_at: Date.now() + duration,
+    remember_me: rememberMe
+  }
+}
+
+export function saveSession(session: SessionData): void {
+  const storage = session.remember_me ? localStorage : sessionStorage
+  storage.setItem('session', JSON.stringify(session))
+}
+
+export function getSession(): SessionData | null {
+  // まずsessionStorageをチェック
+  let sessionData = sessionStorage.getItem('session')
+  if (!sessionData) {
+    // なければlocalStorageをチェック
+    sessionData = localStorage.getItem('session')
+  }
+
+  if (!sessionData) return null
+
+  try {
+    const session: SessionData = JSON.parse(sessionData)
+    
+    // 期限チェック
+    if (Date.now() > session.expires_at) {
+      clearSession()
+      return null
+    }
+
+    return session
+  } catch {
+    clearSession()
+    return null
+  }
+}
+
+export function clearSession(): void {
+  sessionStorage.removeItem('session')
+  localStorage.removeItem('session')
+}
+
+export function isSessionValid(): boolean {
+  const session = getSession()
+  return session !== null
+}
+```
+
+#### 4. 認証コンテキスト
+**ファイル**: `contexts/AuthContext.tsx`
+```typescript
+'use client'
+
+import { createContext, useContext, useState, useEffect } from 'react'
+import { User, AuthState, LoginCredentials } from '@/types/auth'
+import { authenticate, logout } from '@/lib/auth'
+import { getSession, saveSession, createSession, clearSession } from '@/lib/session'
+
+interface AuthContextType extends AuthState {
+  login: (credentials: LoginCredentials) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    isLoading: true,
+    isAuthenticated: false
+  })
+
+  // 初期化
+  useEffect(() => {
+    const session = getSession()
+    if (session) {
+      setAuthState({
+        user: session.user,
+        isLoading: false,
+        isAuthenticated: true
+      })
+    } else {
+      setAuthState(prev => ({ ...prev, isLoading: false }))
+    }
+  }, [])
+
+  const login = async (credentials: LoginCredentials) => {
+    try {
+      setAuthState(prev => ({ ...prev, isLoading: true }))
+      
+      const user = await authenticate(credentials)
+      if (!user) throw new Error('認証に失敗しました')
+
+      const session = createSession(user, credentials.remember_me)
+      saveSession(session)
+
+      setAuthState({
+        user,
+        isLoading: false,
+        isAuthenticated: true
+      })
+    } catch (error) {
+      setAuthState(prev => ({ ...prev, isLoading: false }))
+      throw error
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    clearSession()
+    setAuthState({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false
+    })
+  }
+
+  return (
+    <AuthContext.Provider value={{
+      ...authState,
+      login,
+      logout: handleLogout
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
+```
+
+#### 5. 認証ガード
+**ファイル**: `components/AuthGuard.tsx`
+```typescript
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+
+// 従業員がアクセスできないページ
+const EMPLOYEE_RESTRICTED_PAGES = [
+  '/employee',      // 従業員管理
+  '/workplace',     // 配置場所管理
+  '/shiftPattern',  // シフトパターン管理
+  '/constraints'    // AI制約条件管理
+]
+
+interface AuthGuardProps {
+  children: React.ReactNode
+}
+
+export default function AuthGuard({ children }: AuthGuardProps) {
+  const { user, isLoading, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (!isLoading) {
+      // 未認証の場合、ログインページにリダイレクト
+      if (!isAuthenticated) {
+        router.push('/login')
+        return
+      }
+
+      // 従業員の権限チェック
+      if (user?.role === 'employee' && EMPLOYEE_RESTRICTED_PAGES.includes(pathname)) {
+        router.push('/') // シフト作成ページにリダイレクト
+        return
+      }
+    }
+  }, [isAuthenticated, isLoading, user, pathname, router])
+
+  // ローディング中
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 未認証の場合は何も表示しない（リダイレクト中）
+  if (!isAuthenticated) {
+    return null
+  }
+
+  return <>{children}</>
+}
+```
+
+#### 6. ログインフォーム
+**ファイル**: `components/LoginForm.tsx`
+```typescript
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Lock, User, Eye, EyeOff } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { LoginCredentials } from '@/types/auth'
+import { validateUserId, validatePassword } from '@/lib/auth'
+
+export default function LoginForm() {
+  const router = useRouter()
+  const { login } = useAuth()
+  
+  const [formData, setFormData] = useState<LoginCredentials>({
+    user_id: '',
+    password: '',
+    remember_me: false
+  })
+  
+  const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isLoading, setIsLoading] = useState(false)
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.user_id) {
+      newErrors.user_id = 'ユーザーIDを入力してください'
+    } else if (!validateUserId(formData.user_id)) {
+      newErrors.user_id = 'ユーザーIDは小文字5文字+数字3桁で入力してください'
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'パスワードを入力してください'
+    } else if (!validatePassword(formData.password)) {
+      newErrors.password = 'パスワードは小文字5文字+数字3桁で入力してください'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) return
+
+    setIsLoading(true)
+    try {
+      await login(formData)
+      router.push('/') // シフト作成ページにリダイレクト
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'ログインに失敗しました' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800">シフト管理システム</h1>
+            <p className="text-gray-600 mt-2">ログインしてください</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ユーザーID */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ユーザーID
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={formData.user_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, user_id: e.target.value.toLowerCase() }))}
+                  className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-200 transition-colors ${
+                    errors.user_id ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-indigo-500'
+                  }`}
+                  placeholder="例: tanaka123"
+                  maxLength={8}
+                  disabled={isLoading}
+                />
+              </div>
+              {errors.user_id && <p className="text-red-500 text-sm mt-1">{errors.user_id}</p>}
+            </div>
+
+            {/* パスワード */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                パスワード
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  className={`w-full pl-10 pr-12 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-200 transition-colors ${
+                    errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-indigo-500'
+                  }`}
+                  placeholder="パスワードを入力"
+                  maxLength={8}
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+            </div>
+
+            {/* ログイン状態を保持 */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="remember_me"
+                checked={formData.remember_me}
+                onChange={(e) => setFormData(prev => ({ ...prev, remember_me: e.target.checked }))}
+                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                disabled={isLoading}
+              />
+              <label htmlFor="remember_me" className="ml-2 text-sm text-gray-700">
+                ログイン状態を保持する（2週間）
+              </label>
+            </div>
+
+            {/* エラーメッセージ */}
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-700 text-sm">{errors.submit}</p>
+              </div>
+            )}
+
+            {/* ログインボタン */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none"
+            >
+              {isLoading ? 'ログイン中...' : 'ログイン'}
+            </button>
+          </form>
+
+          {/* デモユーザー情報 */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-xs text-gray-600 mb-2">デモ用ログイン情報:</p>
+            <div className="text-xs space-y-1">
+              <div>管理者: admin123 / admin123</div>
+              <div>従業員: nurse456 / nurse456</div>
+              <div>開発者: devel789 / devel789</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+#### 7. ログインページ
+**ファイル**: `app/login/page.tsx`
+```typescript
+import LoginForm from '@/components/LoginForm'
+
+export default function LoginPage() {
+  return <LoginForm />
+}
+```
+
+### Phase 2: 既存ファイル変更
+
+#### 1. app/layout.tsx変更
+**変更内容**: AuthProviderでラップ
+```typescript
+import type { Metadata } from 'next'
+import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext'
+
+export const metadata: Metadata = {
+  title: 'メディ様専用シフト作成ツール',
+  description: 'AIを活用した医療機関向けシフト管理システム',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="ja">
+      <body className="font-sans antialiased">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+#### 2. app/page.tsx変更
+**変更内容**: 認証チェック追加
+```typescript
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import AuthGuard from '@/components/AuthGuard'
+import MainLayout from '@/components/MainLayout'
+
+export default function HomePage() {
+  const { isAuthenticated, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    // 認証されていない場合、ログインページにリダイレクト
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  // ローディング中またはリダイレクト中
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <AuthGuard>
+      <MainLayout />
+    </AuthGuard>
+  )
+}
+```
+
+#### 3. components/MainLayout.tsx変更
+**変更内容**: 権限管理とログアウト機能追加
+
+```typescript
+// 既存のimportに追加
+import { useAuth } from '@/contexts/AuthContext'
+import { LogOut } from 'lucide-react'
+import type { UserRole } from '@/types/auth'
+
+// 権限に応じたメニューフィルタリング関数を追加
+const getFilteredMenuItems = (userRole: UserRole): MenuItem[] => {
+  const allMenuItems: MenuItem[] = [
+    {
+      id: 'dataInput',
+      icon: <Rocket className="w-5 h-5" />,
+      title: 'シフト作成',
+      description: '管理機能カード、AI作成開始'
+    },
+    {
+      id: 'employee',
+      icon: <Users className="w-5 h-5" />,
+      title: '従業員管理',
+      description: '基本情報、対応可能配置'
+    },
+    {
+      id: 'workplace',
+      icon: <MapPin className="w-5 h-5" />,
+      title: '配置場所管理',
+      description: 'AM/PM分割、14箇所設定'
+    },
+    {
+      id: 'shiftPattern',
+      icon: <Clock className="w-5 h-5" />,
+      title: 'シフトパターン管理',
+      description: '勤務時間帯のパターンを登録'
+    },
+    {
+      id: 'leave',
+      icon: <Calendar className="w-5 h-5" />,
+      title: '希望休管理',
+      description: 'カレンダー/リスト表示'
+    },
+    {
+      id: 'constraints',
+      icon: <Bot className="w-5 h-5" />,
+      title: 'AI制約条件管理',
+      description: '自然言語での制約設定'
+    },
+    {
+      id: 'shift',
+      icon: <ClipboardList className="w-5 h-5" />,
+      title: 'シフト表示',
+      description: '【AM】/【PM】表示、編集'
+    }
+  ]
+  
+  if (userRole === 'employee') {
+    // 従業員は特定のページのみアクセス可能
+    return allMenuItems.filter(item => 
+      ['dataInput', 'leave', 'shift'].includes(item.id)
+    )
+  }
+  
+  // 管理者・開発者は全てアクセス可能
+  return allMenuItems
+}
+
+// MainLayout関数内で以下を変更
+export default function MainLayout({ children }: LayoutProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [currentPage, setCurrentPage] = useState<PageType>('dataInput')
+  
+  // 認証情報を取得
+  const { user, logout } = useAuth()
+
+  // ユーザー情報（認証コンテキストから取得）
+  const userInfo = {
+    name: user?.name || '匿名ユーザー',
+    role: user?.role || 'employee',
+    avatar: user?.role === 'admin' ? '👑' : user?.role === 'developer' ? '🔧' : '👤'
+  }
+
+  // 権限に応じたメニュー項目
+  const menuItems = user ? getFilteredMenuItems(user.role) : []
+
+  // ログアウト処理
+  const handleLogout = async () => {
+    if (confirm('ログアウトしますか？')) {
+      await logout()
+    }
+  }
+
+  // システムメニューにログアウトを追加
+  const systemItems = [
+    { icon: <BookOpen className="w-4 h-4" />, title: '操作マニュアル' },
+    { icon: <HelpCircle className="w-4 h-4" />, title: 'ヘルプ・サポート' },
+    { icon: <Download className="w-4 h-4" />, title: 'データエクスポート' },
+    { 
+      icon: <LogOut className="w-4 h-4" />, 
+      title: 'ログアウト',
+      onClick: handleLogout
+    }
+  ]
+
+  // 既存のコードは基本的にそのまま
+  // systemItemsのマップ部分でonClick処理を追加
+  {systemItems.map((item, index) => (
+    <li key={index}>
+      <button
+        onClick={item.onClick || (() => {})}
+        className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-left"
+      >
+        {item.icon}
+        {!isCollapsed && <span className="text-sm">{item.title}</span>}
+      </button>
+    </li>
+  ))}
+```
+
+#### 4. types/index.ts変更
+**変更内容**: UserRole型を追加
+```typescript
+// 既存の内容に以下を追加
+export type UserRole = 'admin' | 'employee' | 'developer'
+
+// 既存のUser interfaceを更新（もし存在する場合）
+export interface User {
+  id: string
+  name: string
+  role: UserRole
+  avatar: string
+  // その他の既存フィールド
+}
+```
+
+## テストデータ
+
+### モックユーザー（開発・テスト用）
+1. **管理者**: `admin123` / `admin123`
+2. **従業員**: `nurse456` / `nurse456`  
+3. **開発者**: `devel789` / `devel789`
+
+## 実装チェックリスト
+
+### Phase 1: 新規ファイル作成
+- [ ] `types/auth.ts` - 認証関連型定義
+- [ ] `lib/auth.ts` - 認証ロジック
+- [ ] `lib/session.ts` - セッション管理
+- [ ] `contexts/AuthContext.tsx` - 認証コンテキスト
+- [ ] `components/AuthGuard.tsx` - 認証ガード
+- [ ] `components/LoginForm.tsx` - ログインフォーム
+- [ ] `app/login/page.tsx` - ログインページ
+
+### Phase 2: 既存ファイル変更
+- [ ] `app/layout.tsx` - AuthProviderでラップ
+- [ ] `app/page.tsx` - 認証チェック追加
+- [ ] `components/MainLayout.tsx` - 権限管理・ログアウト機能追加
+- [ ] `types/index.ts` - UserRole型追加
+
+### Phase 3: 動作確認
+- [ ] ログインページ表示確認
+- [ ] 各ユーザー種別でのログイン動作確認
+- [ ] 権限によるページアクセス制限確認
+- [ ] セッション管理（保持・期限）確認
+- [ ] ログアウト機能確認
+- [ ] モバイル表示確認
+
+## 将来実装予定
+
+### Supabase連携時の変更点
+1. `lib/auth.ts` - モック認証を実際のSupabase認証に変更
+2. ユーザーテーブル作成・管理
+3. パスワードハッシュ化
+4. セッション管理のAPI連携
+
+### マルチテナント対応時の変更点
+1. サブドメイン対応
+2. テナント選択機能追加
+3. データベースにtenant_id追加
+4. 認証フローにテナント情報組み込み
+
+## 注意事項
+
+1. **セキュリティ**: 現在はモック実装のため、本番環境では必ずSupabase等の認証システムを使用
+2. **パスワード**: 現在は平文保存、本番では必ずハッシュ化
+3. **セッション**: ブラウザストレージ使用、本番ではよりセキュアな方法を検討
+4. **バリデーション**: フロントエンドのみ、本番ではバックエンドでも実装
+5. **エラーハンドリング**: 基本的なもののみ、本番では詳細なエラー処理が必要
+
+## 完了基準
+
+すべてのチェックリスト項目が完了し、以下の動作が確認できること：
+1. ログインページでの認証
+2. 権限に応じたページアクセス制限
+3. セッション管理（時間・保持機能）
+4. ログアウト機能
+5. モバイル対応
+
+実装完了後は次のフェーズ（Supabaseデータベース連携）に進む予定。
