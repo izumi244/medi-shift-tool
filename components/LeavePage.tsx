@@ -32,6 +32,7 @@ const LeavePage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<RequestStatus | ''>('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [requestType, setRequestType] = useState<'leave' | 'work'>('leave');
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
 
   const getInitialFormData = useCallback((): LeaveFormData => ({
     employee_id: '',
@@ -42,7 +43,6 @@ const LeavePage: React.FC = () => {
 
   const {
     isOpen: isModalOpen,
-    editingItem: selectedLeave,
     formData,
     setFormData,
     openModal: openModalBase,
@@ -451,7 +451,7 @@ const LeavePage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-bold text-indigo-600">新規申請</h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-6 h-6" />
@@ -532,7 +532,7 @@ const LeavePage: React.FC = () => {
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors"
                 >
                   キャンセル

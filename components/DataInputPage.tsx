@@ -98,7 +98,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
     const currentMonth = currentDate.getMonth()
     const currentYear = currentDate.getFullYear()
     const currentMonthLeaves = leaveRequests.filter(leave => {
-      const leaveDate = new Date(leave.leave_date)
+      const leaveDate = new Date(leave.date)
       return leaveDate.getMonth() === currentMonth && leaveDate.getFullYear() === currentYear
     }).length
 

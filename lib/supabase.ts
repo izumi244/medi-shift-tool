@@ -18,8 +18,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export function createServerSupabaseClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!serviceRoleKey) {
-    throw new Error('Supabase Service Role Key must be provided for server-side operations')
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase URL and Service Role Key must be provided for server-side operations')
   }
 
   return createClient(supabaseUrl, serviceRoleKey, {

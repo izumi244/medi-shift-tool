@@ -153,13 +153,13 @@ const ShiftPage: React.FC = () => {
     const shiftData = {
       employee_id: employeeId,
       date: dateString,
-      am_workplace: editValues.editType !== 'rest' ? editValues.am : null,
-      pm_workplace: editValues.editType !== 'rest' ? editValues.pm : null,
-      shift_pattern_id: editValues.editType === 'pattern' ? editValues.patternId : null,
-      custom_start_time: editValues.editType === 'custom' ? editValues.customStartTime : null,
-      custom_end_time: editValues.editType === 'custom' ? editValues.customEndTime : null,
+      am_workplace: editValues.editType !== 'rest' ? editValues.am : undefined,
+      pm_workplace: editValues.editType !== 'rest' ? editValues.pm : undefined,
+      shift_pattern_id: editValues.editType === 'pattern' ? editValues.patternId : undefined,
+      custom_start_time: editValues.editType === 'custom' ? editValues.customStartTime : undefined,
+      custom_end_time: editValues.editType === 'custom' ? editValues.customEndTime : undefined,
       is_rest: editValues.editType === 'rest',
-      rest_reason: editValues.editType === 'rest' ? editValues.restReason : null,
+      rest_reason: editValues.editType === 'rest' ? editValues.restReason : undefined,
       status: 'confirmed' as const
     };
 

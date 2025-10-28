@@ -184,7 +184,8 @@ export default function WorkplacePage() {
 
       await addWorkplace({
         ...formData,
-        order_index: nextOrderIndex
+        order_index: nextOrderIndex,
+        is_active: true
       })
     }
 

@@ -107,7 +107,10 @@ const EmployeePage: React.FC = () => {
     if (editingEmployee) {
       await updateEmployee(editingEmployee.id, formData);
     } else {
-      await addEmployee(formData);
+      await addEmployee({
+        ...formData,
+        is_active: true
+      });
     }
     closeModal();
   };
@@ -233,7 +236,7 @@ const EmployeePage: React.FC = () => {
                     <div className="flex flex-wrap gap-1">
                       {employee.available_days.map((day) => (
                         <span key={day} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
-                          {normalizeDayToJapanese(day)}
+                          {day}
                         </span>
                       ))}
                     </div>
