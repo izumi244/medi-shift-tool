@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Clock,
   Plus,
@@ -12,20 +12,38 @@ import {
   Palette
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useModalManager } from '@/hooks/useModalManager';
 import type { ShiftPattern } from '@/types';
+
+type ShiftPatternFormData = Omit<ShiftPattern, 'id'>;
 
 const ShiftPatternPage: React.FC = () => {
   const { shiftPatterns, addShiftPattern, updateShiftPattern, deleteShiftPattern: deleteShiftPatternFromContext } = useShiftData();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingPattern, setEditingPattern] = useState<ShiftPattern | null>(null);
-  const [formData, setFormData] = useState<Omit<ShiftPattern, 'id'>>({
+  const getInitialFormData = useCallback((): ShiftPatternFormData => ({
     name: '',
-    start_time: '',
-    end_time: '',
+    start_time: '09:00',
+    end_time: '17:00',
     break_minutes: 60,
     color: '#e0f2fe'
-  });
+  }), []);
+
+  const mapPatternToFormData = useCallback((pattern: ShiftPattern): ShiftPatternFormData => ({
+    name: pattern.name,
+    start_time: pattern.start_time,
+    end_time: pattern.end_time,
+    break_minutes: pattern.break_minutes,
+    color: pattern.color
+  }), []);
+
+  const {
+    isOpen: isModalOpen,
+    editingItem: editingPattern,
+    formData,
+    setFormData,
+    openModal,
+    closeModal
+  } = useModalManager<ShiftPattern, ShiftPatternFormData>(getInitialFormData, mapPatternToFormData);
 
   const colorOptions = [
     { name: 'Blue', value: '#e0f2fe' },
@@ -36,28 +54,6 @@ const ShiftPatternPage: React.FC = () => {
     { name: 'Indigo', value: '#e0e7ff' },
     { name: 'Gray', value: '#f3f4f6' },
   ];
-
-  const openModal = (pattern?: ShiftPattern) => {
-    if (pattern) {
-      setEditingPattern(pattern);
-      setFormData(pattern);
-    } else {
-      setEditingPattern(null);
-      setFormData({
-        name: '',
-        start_time: '09:00',
-        end_time: '17:00',
-        break_minutes: 60,
-        color: '#e0f2fe'
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingPattern(null);
-  };
 
   const savePattern = async () => {
     if (editingPattern) {

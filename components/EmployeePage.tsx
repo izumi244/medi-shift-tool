@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Users,
   Plus,
@@ -14,30 +14,23 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useModalManager } from '@/hooks/useModalManager';
 import type { Employee, EmploymentType, JobType } from '@/types';
+
+type EmployeeFormData = {
+  name: string;
+  employment_type: EmploymentType;
+  job_type: JobType;
+  available_days: string[];
+  assignable_workplaces_by_day: Record<string, string[]>;
+  assignable_shift_pattern_ids: string[];
+  day_constraints: { if: string; then: string; }[];
+};
 
 const EmployeePage: React.FC = () => {
   const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext } = useShiftData();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchText, setSearchText] = useState('');
-
-  // 曜日の英語→日本語変換マップ
-  const dayMapping: Record<string, string> = {
-    'monday': '月',
-    'tuesday': '火',
-    'wednesday': '水',
-    'thursday': '木',
-    'friday': '金',
-    'saturday': '土',
-    'sunday': '日'
-  };
-
-  // 曜日を日本語に統一する関数
-  const normalizeDayToJapanese = (day: string): string => {
-    return dayMapping[day.toLowerCase()] || day;
-  };
 
   // 配置場所をworkplacesから動的に生成
   const facilityOptions = React.useMemo(() => {
@@ -58,7 +51,7 @@ const EmployeePage: React.FC = () => {
 
   const dayOptions = ['月', '火', '水', '木', '金', '土'];
 
-  const getInitialFormData = () => ({
+  const getInitialFormData = useCallback((): EmployeeFormData => ({
     name: '',
     employment_type: '常勤' as EmploymentType,
     job_type: '看護師' as JobType,
@@ -68,9 +61,38 @@ const EmployeePage: React.FC = () => {
     } as Record<string, string[]>,
     assignable_shift_pattern_ids: [] as string[],
     day_constraints: [] as { if: string; then: string; }[]
-  });
+  }), []);
 
-  const [formData, setFormData] = useState(getInitialFormData());
+  const mapEmployeeToFormData = useCallback((employee: Employee): EmployeeFormData => {
+    // 土曜日がない場合は追加
+    const availableDays = employee.available_days.includes('土')
+      ? employee.available_days
+      : [...employee.available_days, '土'];
+
+    const workplacesByDay = employee.assignable_workplaces_by_day || {};
+    if (!workplacesByDay['土']) {
+      workplacesByDay['土'] = [];
+    }
+
+    return {
+      name: employee.name,
+      employment_type: employee.employment_type,
+      job_type: employee.job_type,
+      available_days: availableDays,
+      assignable_workplaces_by_day: workplacesByDay,
+      assignable_shift_pattern_ids: employee.assignable_shift_pattern_ids || [],
+      day_constraints: employee.day_constraints || []
+    };
+  }, []);
+
+  const {
+    isOpen: isModalOpen,
+    editingItem: editingEmployee,
+    formData,
+    setFormData,
+    openModal,
+    closeModal
+  } = useModalManager<Employee, EmployeeFormData>(getInitialFormData, mapEmployeeToFormData);
 
   const filteredEmployees = employees.filter(emp => emp.is_active && emp.name.toLowerCase().includes(searchText.toLowerCase()));
 
@@ -79,48 +101,6 @@ const EmployeePage: React.FC = () => {
       return facilityOptions.filter(f => f.category === '健診棟');
     }
     return facilityOptions;
-  };
-
-  const openModal = (employee?: Employee) => {
-    if (employee) {
-      setEditingEmployee(employee);
-
-      // 曜日を日本語に正規化
-      const normalizedDays = employee.available_days.map(day => normalizeDayToJapanese(day));
-      const availableDays = normalizedDays.includes('土')
-        ? normalizedDays
-        : [...normalizedDays, '土'];
-
-      // assignable_workplaces_by_dayのキーも日本語に正規化
-      const normalizedWorkplaces: Record<string, string[]> = {};
-      Object.entries(employee.assignable_workplaces_by_day || {}).forEach(([day, workplaces]) => {
-        const japaneseDay = normalizeDayToJapanese(day);
-        normalizedWorkplaces[japaneseDay] = workplaces;
-      });
-
-      if (!normalizedWorkplaces['土']) {
-        normalizedWorkplaces['土'] = [];
-      }
-
-      setFormData({
-        name: employee.name,
-        employment_type: employee.employment_type,
-        job_type: employee.job_type,
-        available_days: availableDays,
-        assignable_workplaces_by_day: normalizedWorkplaces,
-        assignable_shift_pattern_ids: employee.assignable_shift_pattern_ids || [],
-        day_constraints: employee.day_constraints || []
-      });
-    } else {
-      setEditingEmployee(null);
-      setFormData(getInitialFormData());
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingEmployee(null);
   };
 
   const saveEmployee = async () => {

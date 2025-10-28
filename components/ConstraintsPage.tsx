@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Bot,
   Plus,
@@ -10,47 +10,40 @@ import {
   X
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useModalManager } from '@/hooks/useModalManager';
 import type { AIConstraintGuideline } from '@/types';
+
+type ConstraintFormData = {
+  constraint_content: string;
+};
 
 const ConstraintsPage: React.FC = () => {
   const { constraints, addConstraint, updateConstraint, deleteConstraint: deleteConstraintFromContext } = useShiftData();
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingConstraint, setEditingConstraint] = useState<AIConstraintGuideline | null>(null);
   const [searchText, setSearchText] = useState('');
 
-  // フォーム状態
-  const [formData, setFormData] = useState({
+  const getInitialFormData = useCallback((): ConstraintFormData => ({
     constraint_content: ''
-  });
+  }), []);
+
+  const mapConstraintToFormData = useCallback((constraint: AIConstraintGuideline): ConstraintFormData => ({
+    constraint_content: constraint.constraint_content
+  }), []);
+
+  const {
+    isOpen: isModalOpen,
+    editingItem: editingConstraint,
+    formData,
+    setFormData,
+    openModal,
+    closeModal
+  } = useModalManager<AIConstraintGuideline, ConstraintFormData>(getInitialFormData, mapConstraintToFormData);
 
   // フィルタリングされた制約
   const filteredConstraints = constraints.filter(constraint => {
     const matchesSearch = constraint.constraint_content.toLowerCase().includes(searchText.toLowerCase());
     return matchesSearch && constraint.is_active;
   }).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()); // 更新日順でソート
-
-  // モーダルを開く
-  const openModal = (constraint?: AIConstraintGuideline) => {
-    if (constraint) {
-      setEditingConstraint(constraint);
-      setFormData({
-        constraint_content: constraint.constraint_content
-      });
-    } else {
-      setEditingConstraint(null);
-      setFormData({
-        constraint_content: ''
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  // モーダルを閉じる
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingConstraint(null);
-  };
 
   // 制約を保存
   const saveConstraint = async () => {

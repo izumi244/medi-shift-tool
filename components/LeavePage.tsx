@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Calendar,
   Plus,
@@ -15,25 +15,44 @@ import {
   X
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useModalManager } from '@/hooks/useModalManager';
 import type { LeaveRequest, RequestStatus } from '@/types';
+
+type LeaveFormData = {
+  employee_id: string;
+  date: string;
+  leave_type: LeaveRequest['leave_type'];
+  reason: string;
+};
 
 const LeavePage: React.FC = () => {
   const { employees, leaveRequests, addLeaveRequest, updateLeaveRequest } = useShiftData();
   const [currentMonth, setCurrentMonth] = useState('2025-08');
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [filterStatus, setFilterStatus] = useState<RequestStatus | ''>('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [requestType, setRequestType] = useState<'leave' | 'work'>('leave');
 
-  // フォームデータ
-  const [formData, setFormData] = useState({
+  const getInitialFormData = useCallback((): LeaveFormData => ({
     employee_id: '',
     date: '',
-    leave_type: '希望休' as LeaveRequest['leave_type'],
+    leave_type: '希望休',
     reason: ''
-  });
+  }), []);
+
+  const {
+    isOpen: isModalOpen,
+    editingItem: selectedLeave,
+    formData,
+    setFormData,
+    openModal: openModalBase,
+    closeModal
+  } = useModalManager<LeaveRequest, LeaveFormData>(getInitialFormData);
+
+  const openModal = useCallback(() => {
+    setRequestType('leave');
+    openModalBase();
+  }, [openModalBase]);
 
   // 従業員名を取得
   const getEmployeeName = (employeeId: string) => {
@@ -79,17 +98,6 @@ const LeavePage: React.FC = () => {
     });
   };
 
-  const openModal = () => {
-    setRequestType('leave');
-    setFormData({
-      employee_id: '',
-      date: '',
-      leave_type: '希望休',
-      reason: ''
-    });
-    setIsModalOpen(true);
-  };
-
   // 新規申請を追加
   const addRequest = async () => {
     const finalLeaveType = requestType === 'work' ? '出勤可能' : formData.leave_type;
@@ -99,7 +107,7 @@ const LeavePage: React.FC = () => {
       leave_type: finalLeaveType,
       status: '申請中'
     });
-    setIsModalOpen(false);
+    closeModal();
   };
 
   // フィルタリングされた希望休

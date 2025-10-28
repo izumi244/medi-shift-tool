@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, ReactNode } from 'react'
-import { 
-  Users, 
-  MapPin, 
-  Calendar, 
-  Bot, 
-  ClipboardList, 
+import { useState, ReactNode, useMemo } from 'react'
+import {
+  Users,
+  MapPin,
+  Calendar,
+  Bot,
+  ClipboardList,
   Rocket,
   Play,
   Scissors
 } from 'lucide-react'
+import { useShiftData } from '@/contexts/ShiftDataContext'
 
 interface ManagementCard {
   id: string
@@ -33,6 +34,7 @@ interface DataInputPageProps {
 }
 
 export default function DataInputPage({ onNavigate }: DataInputPageProps) {
+  const { employees, leaveRequests, workplaces, constraints } = useShiftData()
   const [targetMonth, setTargetMonth] = useState('2025-08')
   const [specialRequests, setSpecialRequests] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -89,33 +91,44 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
     }
   ]
 
-  // 統計カード
-  const statCards: StatCard[] = [
-    {
-      icon: <Users className="w-8 h-8" />,
-      title: '登録従業員数',
-      value: '15人',
-      color: 'text-blue-600'
-    },
-    {
-      icon: <Calendar className="w-8 h-8" />,
-      title: '今月の希望休',
-      value: '3件',
-      color: 'text-green-600'
-    },
-    {
-      icon: <MapPin className="w-8 h-8" />,
-      title: '配置場所数',
-      value: '14箇所',
-      color: 'text-orange-600'
-    },
-    {
-      icon: <Bot className="w-8 h-8" />,
-      title: 'AI制約ルール',
-      value: '12件',
-      color: 'text-purple-600'
-    }
-  ]
+  // 統計カード（動的データに変更）
+  const statCards: StatCard[] = useMemo(() => {
+    // 今月の希望休をカウント
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth()
+    const currentYear = currentDate.getFullYear()
+    const currentMonthLeaves = leaveRequests.filter(leave => {
+      const leaveDate = new Date(leave.leave_date)
+      return leaveDate.getMonth() === currentMonth && leaveDate.getFullYear() === currentYear
+    }).length
+
+    return [
+      {
+        icon: <Users className="w-8 h-8" />,
+        title: '登録従業員数',
+        value: `${employees.filter(e => e.is_active).length}人`,
+        color: 'text-blue-600'
+      },
+      {
+        icon: <Calendar className="w-8 h-8" />,
+        title: '今月の希望休',
+        value: `${currentMonthLeaves}件`,
+        color: 'text-green-600'
+      },
+      {
+        icon: <MapPin className="w-8 h-8" />,
+        title: '配置場所数',
+        value: `${workplaces.filter(w => w.is_active).length}箇所`,
+        color: 'text-orange-600'
+      },
+      {
+        icon: <Bot className="w-8 h-8" />,
+        title: 'AI制約ルール',
+        value: `${constraints.filter(c => c.is_active).length}件`,
+        color: 'text-purple-600'
+      }
+    ]
+  }, [employees, leaveRequests, workplaces, constraints])
 
   const handleCardClick = (cardId: string) => {
     if (onNavigate) {
