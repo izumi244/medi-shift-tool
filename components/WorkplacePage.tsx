@@ -110,26 +110,27 @@ export default function WorkplacePage() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot>('AM')
   
   // 曜日選択の状態を追加
-  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<DayOfWeek>('monday')
+  const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<DayOfWeek>('月')
 
   // フォーム状態（人数フィールドを追加）
   const [formData, setFormData] = useState({
     name: '',
     facility: 'クリニック棟' as FacilityType,
     time_slot: 'AM' as TimeSlot,
-    day_of_week: 'monday' as DayOfWeek,
+    day_of_week: '月' as DayOfWeek,
     required_count: 1,
     remarks: ''
   })
 
   // 曜日の日本語表示
-  const dayOfWeekLabels = {
-    monday: '月曜日',
-    tuesday: '火曜日', 
-    wednesday: '水曜日',
-    thursday: '木曜日',
-    friday: '金曜日',
-    saturday: '土曜日'
+  const dayOfWeekLabels: Record<DayOfWeek, string> = {
+    '月': '月曜日',
+    '火': '火曜日',
+    '水': '水曜日',
+    '木': '木曜日',
+    '金': '金曜日',
+    '土': '土曜日',
+    '日': '日曜日'
   }
 
   // フィルタリングされた配置場所（曜日フィルターを追加）

@@ -27,7 +27,7 @@ export interface ShiftPattern {
 }
 
 // 曜日の型定義
-export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+export type DayOfWeek = '月' | '火' | '水' | '木' | '金' | '土' | '日'
 
 // 従業員
 export interface Employee {
