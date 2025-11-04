@@ -14,6 +14,7 @@ import {
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import type { ShiftPattern } from '@/types';
+import { shiftPatternColorOptions } from '@/lib/colors';
 
 type ShiftPatternFormData = Omit<ShiftPattern, 'id'>;
 
@@ -44,16 +45,6 @@ const ShiftPatternPage: React.FC = () => {
     openModal,
     closeModal
   } = useModalManager<ShiftPattern, ShiftPatternFormData>(getInitialFormData, mapPatternToFormData);
-
-  const colorOptions = [
-    { name: 'Blue', value: '#e0f2fe' },
-    { name: 'Green', value: '#dcfce7' },
-    { name: 'Yellow', value: '#fef9c3' },
-    { name: 'Pink', value: '#fce7f3' },
-    { name: 'Purple', value: '#f3e8ff' },
-    { name: 'Indigo', value: '#e0e7ff' },
-    { name: 'Gray', value: '#f3f4f6' },
-  ];
 
   const savePattern = async () => {
     if (editingPattern) {
@@ -201,7 +192,7 @@ const ShiftPatternPage: React.FC = () => {
                   表示色 <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-4 gap-2">
-                  {colorOptions.map(opt => (
+                  {shiftPatternColorOptions.map(opt => (
                     <label key={opt.value} className="flex items-center justify-center p-2 rounded-lg cursor-pointer border-2" style={{ backgroundColor: opt.value, borderColor: formData.color === opt.value ? '#4f46e5' : opt.value }}>
                       <input
                         type="radio"

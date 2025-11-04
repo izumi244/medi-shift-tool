@@ -17,6 +17,7 @@ import {
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import type { LeaveRequest, RequestStatus } from '@/types';
+import { statusColors, leaveTypeColors } from '@/lib/colors';
 
 type LeaveFormData = {
   employee_id: string;
@@ -27,7 +28,10 @@ type LeaveFormData = {
 
 const LeavePage: React.FC = () => {
   const { employees, leaveRequests, addLeaveRequest, updateLeaveRequest } = useShiftData();
-  const [currentMonth, setCurrentMonth] = useState('2025-08');
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [filterStatus, setFilterStatus] = useState<RequestStatus | ''>('');
   const [filterEmployee, setFilterEmployee] = useState('');
@@ -137,21 +141,6 @@ const LeavePage: React.FC = () => {
     }
 
     return days;
-  };
-
-  const statusColors = {
-    '申請中': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', icon: Clock },
-    '承認': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', icon: CheckCircle2 },
-    '却下': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', icon: XCircle }
-  };
-
-  const leaveTypeColors: Record<LeaveRequest['leave_type'], string> = {
-    '希望休': 'bg-blue-100 text-blue-800',
-    '有休': 'bg-green-100 text-green-800',
-    '忌引': 'bg-gray-100 text-gray-800',
-    '病欠': 'bg-red-100 text-red-800',
-    'その他': 'bg-purple-100 text-purple-800',
-    '出勤可能': 'bg-cyan-100 text-cyan-800'
   };
 
   return (

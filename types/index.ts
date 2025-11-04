@@ -24,6 +24,8 @@ export interface ShiftPattern {
   end_time: string
   break_minutes: number
   color: string // 表示用の色 (例: '#e0e7ff')
+  created_at?: string
+  updated_at?: string
 }
 
 // 曜日の型定義
@@ -249,11 +251,5 @@ export interface PaginationConfig {
   total?: number
 }
 
-export type UserRole = 'admin' | 'employee' | 'developer'
-
-export interface User {
-  id: string
-  name: string
-  role: UserRole
-  avatar: string
-}
+// User型は types/auth.ts に統一（重複削除）
+export type { User, UserRole } from './auth'

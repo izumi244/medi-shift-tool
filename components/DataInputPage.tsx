@@ -35,7 +35,10 @@ interface DataInputPageProps {
 
 export default function DataInputPage({ onNavigate }: DataInputPageProps) {
   const { employees, leaveRequests, workplaces, constraints } = useShiftData()
-  const [targetMonth, setTargetMonth] = useState('2025-08')
+  const [targetMonth, setTargetMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  })
   const [specialRequests, setSpecialRequests] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
 

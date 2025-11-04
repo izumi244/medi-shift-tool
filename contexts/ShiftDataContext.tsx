@@ -125,10 +125,8 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       if (constraintsData.success) setConstraints(constraintsData.data)
       if (shiftsData.success) setShifts(shiftsData.data)
       if (leaveRequestsData.success) setLeaveRequests(leaveRequestsData.data)
-
-      console.log('✅ データリフレッシュ完了')
     } catch (error) {
-      console.error('❌ データリフレッシュエラー:', error)
+      // エラーは無視（本番環境ではロギングサービスに送信することを推奨）
     } finally {
       setLoading(false)
     }

@@ -8,101 +8,18 @@ import {
   Trash2,
   Save,
   X,
-  Clock,
-  Building,
   ArrowUp,
   ArrowDown,
   AlertCircle,
-  CheckCircle2,
   Users
 } from 'lucide-react'
 import { useShiftData } from '@/contexts/ShiftDataContext'
 import type { Workplace, FacilityType, TimeSlot, DayOfWeek } from '@/types'
+import { facilityColors } from '@/lib/colors'
+import { DAY_LABELS } from '@/lib/constants'
 
 export default function WorkplacePage() {
   const { workplaces, addWorkplace, updateWorkplace, deleteWorkplace: deleteWorkplaceFromContext } = useShiftData()
-
-  // 表のデータを参考にした初期データ（移行後削除予定）
-  /*const [workplaces, setWorkplaces] = useState<Workplace[]>([
-    // 月・火・木・土曜日 AM クリニック棟
-    { id: '1', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '2', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '3', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '4', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 月・火・木・土曜日 AM 健診棟
-    { id: '5', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '6', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '7', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'monday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 月・火・木・土曜日 PM クリニック棟
-    { id: '8', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '9', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'monday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 月・火・木・土曜日 PM 健診棟
-    { id: '10', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '11', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'monday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-
-    // 火曜日（月曜日と同じ）
-    { id: '12', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '13', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '14', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '15', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '16', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '17', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '18', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'tuesday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '19', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '20', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '21', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '22', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'tuesday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-
-    // 水曜日 AM 健診棟のみ
-    { id: '23', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'wednesday', required_count: 2, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '24', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'wednesday', required_count: 4, order_index: 2, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 水曜日 PM 健診棟のみ
-    { id: '25', name: '健診G', facility: '健診棟', time_slot: 'PM', day_of_week: 'wednesday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '26', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'wednesday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-
-    // 木曜日（月曜日と同じ）
-    { id: '27', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '28', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '29', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '30', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '31', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '32', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '33', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'thursday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '34', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '35', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '36', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '37', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'thursday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-
-    // 金曜日 AM クリニック棟
-    { id: '38', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '39', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '40', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '41', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 金曜日 AM 健診棟
-    { id: '42', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '43', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '44', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'friday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 金曜日 PM クリニック棟
-    { id: '45', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '46', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'friday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    // 金曜日 PM 健診棟
-    { id: '47', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '48', name: '健診G', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 1, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '49', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'friday', required_count: 3, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-
-    // 土曜日（月曜日と同じ）
-    { id: '50', name: 'D', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: 'PM、CF不可', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '51', name: '処', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 3, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '52', name: 'CF外', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 3, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '53', name: 'CF中', facility: 'クリニック棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 4, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '54', name: 'CF洗浄', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: 'AM健診棟の看護助手さんが行う', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '55', name: '健診G', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 2, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '56', name: '健診', facility: '健診棟', time_slot: 'AM', day_of_week: 'saturday', required_count: 4, order_index: 3, remarks: '最低3人', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '57', name: 'D', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '58', name: '処', facility: 'クリニック棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 4, order_index: 2, remarks: '', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '59', name: 'CF洗浄', facility: '健診棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 1, remarks: '看護助手', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '60', name: '健診', facility: '健診棟', time_slot: 'PM', day_of_week: 'saturday', required_count: 1, order_index: 2, remarks: '翌日健診準備', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
-  ])*/
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkplace, setEditingWorkplace] = useState<Workplace | null>(null)
@@ -121,17 +38,6 @@ export default function WorkplacePage() {
     required_count: 1,
     remarks: ''
   })
-
-  // 曜日の日本語表示
-  const dayOfWeekLabels: Record<DayOfWeek, string> = {
-    '月': '月曜日',
-    '火': '火曜日',
-    '水': '水曜日',
-    '木': '木曜日',
-    '金': '金曜日',
-    '土': '土曜日',
-    '日': '日曜日'
-  }
 
   // フィルタリングされた配置場所（曜日フィルターを追加）
   const getFilteredWorkplaces = (facility: FacilityType, timeSlot: TimeSlot, dayOfWeek: DayOfWeek) => {
@@ -227,21 +133,6 @@ export default function WorkplacePage() {
     await updateWorkplace(targetWorkplace.id, { order_index: workplace.order_index })
   }
 
-  const facilityColors = {
-    'クリニック棟': {
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-800',
-      accent: 'bg-blue-500'
-    },
-    '健診棟': {
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-800',
-      accent: 'bg-green-500'
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* ページヘッダー */}
@@ -259,7 +150,7 @@ export default function WorkplacePage() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">📅 曜日選択</h3>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(dayOfWeekLabels).map(([key, label]) => (
+          {Object.entries(DAY_LABELS).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setSelectedDayOfWeek(key as DayOfWeek)}
@@ -694,7 +585,7 @@ export default function WorkplacePage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, day_of_week: e.target.value as DayOfWeek }))}
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
                   >
-                    {Object.entries(dayOfWeekLabels).map(([key, label]) => (
+                    {Object.entries(DAY_LABELS).map(([key, label]) => (
                       <option key={key} value={key} className="bg-white text-gray-900 py-2">{label}</option>
                     ))}
                   </select>

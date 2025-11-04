@@ -25,7 +25,10 @@ interface ShiftData {
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
   const { employees, shiftPatterns, shifts, addShift, updateShift } = useShiftData();
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 7, 1)); // 2025年8月
+  const [currentDate, setCurrentDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
   const [editMode, setEditMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);

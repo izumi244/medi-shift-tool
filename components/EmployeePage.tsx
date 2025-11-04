@@ -16,6 +16,8 @@ import {
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import type { Employee, EmploymentType, JobType } from '@/types';
+import { employmentTypeColors } from '@/lib/colors';
+import { WORKDAYS, JOB_TYPE_ICONS } from '@/lib/constants';
 
 type EmployeeFormData = {
   name: string;
@@ -49,13 +51,11 @@ const EmployeePage: React.FC = () => {
     return Array.from(uniqueWorkplaces.values());
   }, [workplaces]);
 
-  const dayOptions = ['月', '火', '水', '木', '金', '土'];
-
   const getInitialFormData = useCallback((): EmployeeFormData => ({
     name: '',
     employment_type: '常勤' as EmploymentType,
     job_type: '看護師' as JobType,
-    available_days: ['月', '火', '水', '木', '金', '土'],
+    available_days: WORKDAYS,
     assignable_workplaces_by_day: {
       '月': [], '火': [], '水': [], '木': [], '金': [], '土': []
     } as Record<string, string[]>,
@@ -147,16 +147,6 @@ const EmployeePage: React.FC = () => {
     });
   };
 
-  const employmentTypeColors = {
-    '常勤': 'bg-blue-100 text-blue-800 border-blue-200',
-    'パート': 'bg-purple-100 text-purple-800 border-purple-200'
-  };
-
-  const jobTypeIcons = {
-    '看護師': '🩺',
-    '臨床検査技師': '🔬'
-  };
-
   return (
     <div className="space-y-6">
       <div className="border-b-2 border-gray-100 pb-6">
@@ -207,7 +197,7 @@ const EmployeePage: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg">
-                        {jobTypeIcons[employee.job_type]}
+                        {JOB_TYPE_ICONS[employee.job_type]}
                       </div>
                       <div className="font-semibold text-gray-900">{employee.name}</div>
                     </div>
@@ -343,7 +333,7 @@ const EmployeePage: React.FC = () => {
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
                 <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><Calendar className="w-5 h-5" />曜日別配置可能場所 <span className="text-red-500">*</span></h4>
                 <div className="space-y-2">
-                  {dayOptions.map((day) => (
+                  {WORKDAYS.map((day) => (
                     <div key={day} className="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
                       <div className="flex items-center gap-3 mb-2">
                         <input type="checkbox" checked={formData.available_days.includes(day)} onChange={() => updateCheckboxArray('available_days', day)} className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200" />
