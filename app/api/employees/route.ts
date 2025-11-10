@@ -10,10 +10,11 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient()
 
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('employees')
       .select('*')
       .eq('is_active', true)
+      .order('order_index', { ascending: true })
       .order('created_at', { ascending: false })
 
     if (error) {

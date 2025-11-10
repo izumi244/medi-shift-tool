@@ -23,5 +23,6 @@ export const DAY_LABELS: Record<DayOfWeek, string> = {
 /** 職種アイコン */
 export const JOB_TYPE_ICONS = {
   '看護師': '🩺',
-  '臨床検査技師': '🔬'
+  '臨床検査技師': '🔬',
+  '看護助手': '🤝'
 } as const

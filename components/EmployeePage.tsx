@@ -11,7 +11,9 @@ import {
   MapPin,
   Calendar,
   Clock,
-  RefreshCw
+  RefreshCw,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
@@ -30,7 +32,7 @@ type EmployeeFormData = {
 };
 
 const EmployeePage: React.FC = () => {
-  const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext } = useShiftData();
+  const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext, reorderEmployee } = useShiftData();
 
   const [searchText, setSearchText] = useState('');
 
@@ -55,31 +57,19 @@ const EmployeePage: React.FC = () => {
     name: '',
     employment_type: '常勤' as EmploymentType,
     job_type: '看護師' as JobType,
-    available_days: WORKDAYS,
-    assignable_workplaces_by_day: {
-      '月': [], '火': [], '水': [], '木': [], '金': [], '土': []
-    } as Record<string, string[]>,
-    assignable_shift_pattern_ids: [] as string[],
-    day_constraints: [] as { if: string; then: string; }[]
+    available_days: [],
+    assignable_workplaces_by_day: {},
+    assignable_shift_pattern_ids: [],
+    day_constraints: []
   }), []);
 
   const mapEmployeeToFormData = useCallback((employee: Employee): EmployeeFormData => {
-    // 土曜日がない場合は追加
-    const availableDays = employee.available_days.includes('土')
-      ? employee.available_days
-      : [...employee.available_days, '土'];
-
-    const workplacesByDay = employee.assignable_workplaces_by_day || {};
-    if (!workplacesByDay['土']) {
-      workplacesByDay['土'] = [];
-    }
-
     return {
       name: employee.name,
       employment_type: employee.employment_type,
       job_type: employee.job_type,
-      available_days: availableDays,
-      assignable_workplaces_by_day: workplacesByDay,
+      available_days: employee.available_days || [],
+      assignable_workplaces_by_day: employee.assignable_workplaces_by_day || {},
       assignable_shift_pattern_ids: employee.assignable_shift_pattern_ids || [],
       day_constraints: employee.day_constraints || []
     };
@@ -118,6 +108,15 @@ const EmployeePage: React.FC = () => {
   const handleDeleteEmployee = async (id: string) => {
     if (confirm('この従業員を削除しますか？')) {
       await deleteEmployeeFromContext(id);
+    }
+  };
+
+  const handleReorderEmployee = async (id: string, direction: 'up' | 'down') => {
+    try {
+      await reorderEmployee(id, direction);
+    } catch (error) {
+      console.error('Failed to reorder employee:', error);
+      alert('並び順の変更に失敗しました');
     }
   };
 
@@ -192,7 +191,7 @@ const EmployeePage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredEmployees.map((employee) => (
+              {filteredEmployees.map((employee, index) => (
                 <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -233,6 +232,22 @@ const EmployeePage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleReorderEmployee(employee.id, 'up')}
+                        disabled={index === 0}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="上へ"
+                      >
+                        <ChevronUp className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorderEmployee(employee.id, 'down')}
+                        disabled={index === filteredEmployees.length - 1}
+                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="下へ"
+                      >
+                        <ChevronDown className="w-5 h-5" />
+                      </button>
                       <button
                         onClick={() => openModal(employee)}
                         className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
@@ -289,6 +304,7 @@ const EmployeePage: React.FC = () => {
                   <select value={formData.job_type} onChange={(e) => setFormData(prev => ({ ...prev, job_type: e.target.value as JobType }))} className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800">
                     <option value="看護師">看護師</option>
                     <option value="臨床検査技師">臨床検査技師</option>
+                    <option value="看護助手">看護助手</option>
                   </select>
                 </div>
               </div>
@@ -370,7 +386,7 @@ const EmployeePage: React.FC = () => {
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button type="button" onClick={closeModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors">キャンセル</button>
-                <button type="button" onClick={saveEmployee} disabled={!formData.name || formData.available_days.length === 0} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{editingEmployee ? '更新' : '追加'}</button>
+                <button type="button" onClick={saveEmployee} disabled={!formData.name} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{editingEmployee ? '更新' : '追加'}</button>
               </div>
             </form>
           </div>

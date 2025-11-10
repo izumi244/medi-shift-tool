@@ -30,6 +30,7 @@ interface ShiftDataContextType {
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
   deleteEmployee: (id: string) => Promise<void>
   getEmployeeById: (id: string) => Employee | undefined
+  reorderEmployee: (employeeId: string, direction: 'up' | 'down') => Promise<void>
 
   // 配置場所管理
   addWorkplace: (workplace: Omit<Workplace, 'id' | 'created_at' | 'updated_at'>) => Promise<Workplace>
@@ -187,6 +188,21 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     },
     [employees]
   )
+
+  const reorderEmployee = useCallback(async (employeeId: string, direction: 'up' | 'down') => {
+    const res = await fetch('/api/employees/reorder', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId, direction }),
+    })
+    const result = await res.json()
+    if (result.success) {
+      // データを再取得して最新の順序を反映
+      await refreshAllData()
+    } else {
+      throw new Error(result.error?.message || 'Failed to reorder employee')
+    }
+  }, [refreshAllData])
 
   // ==================== 配置場所管理 ====================
 
@@ -499,6 +515,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     updateEmployee,
     deleteEmployee,
     getEmployeeById,
+    reorderEmployee,
     addWorkplace,
     updateWorkplace,
     deleteWorkplace,

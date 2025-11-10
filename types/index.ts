@@ -7,7 +7,7 @@ import { ReactNode } from 'react'
 export type PageType = 'dataInput' | 'employee' | 'workplace' | 'leave' | 'constraints' | 'shift'
 
 export type EmploymentType = '常勤' | 'パート'
-export type JobType = '看護師' | '臨床検査技師'
+export type JobType = '看護師' | '臨床検査技師' | '看護助手'
 export type FacilityType = 'クリニック棟' | '健診棟'
 export type TimeSlot = 'AM' | 'PM'
 export type ShiftType = '早番' | '遅番' | 'カスタム'
@@ -44,6 +44,7 @@ export interface Employee {
   phone?: string
   email?: string
   notes?: string
+  order_index?: number
   is_active: boolean
   created_at: string
   updated_at: string
