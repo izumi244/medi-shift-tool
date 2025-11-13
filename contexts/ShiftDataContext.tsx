@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import {
   Employee,
+  EmployeeAccountInfo,
   Workplace,
   ShiftPattern,
   Shift,
@@ -26,7 +27,7 @@ interface ShiftDataContextType {
   setLoading: (loading: boolean) => void
 
   // 従業員管理
-  addEmployee: (employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee>
+  addEmployee: (employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee | EmployeeAccountInfo>
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
   deleteEmployee: (id: string) => Promise<void>
   getEmployeeById: (id: string) => Employee | undefined

@@ -114,7 +114,7 @@ const EmployeePage: React.FC = () => {
       });
 
       // アカウント情報モーダルを表示
-      if (newAccountInfo && 'employee_number' in newAccountInfo) {
+      if (newAccountInfo && 'initial_password' in newAccountInfo) {
         setAccountInfo(newAccountInfo as EmployeeAccountInfo);
         setShowAccountInfo(true);
       }
