@@ -7,15 +7,21 @@ import AuthGuard from '@/components/AuthGuard'
 import MainLayout from '@/components/MainLayout'
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     // 認証されていない場合、ログインページにリダイレクト
     if (!isLoading && !isAuthenticated) {
       router.push('/login')
+      return
     }
-  }, [isAuthenticated, isLoading, router])
+
+    // パスワード未変更の場合、パスワード変更ページにリダイレクト
+    if (!isLoading && isAuthenticated && user && !user.password_changed) {
+      router.push('/change-password')
+    }
+  }, [user, isAuthenticated, isLoading, router])
 
   // ローディング中またはリダイレクト中
   if (isLoading || !isAuthenticated) {

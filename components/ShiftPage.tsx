@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { ShiftPattern, Employee } from '@/types';
 
 // --- Component-Specific Types ---
@@ -24,12 +25,16 @@ interface ShiftData {
 
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
+  const { user } = useAuth();
   const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift } = useShiftData();
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
   const [editMode, setEditMode] = useState(false);
+
+  // 従業員モードかどうか
+  const isEmployee = user?.role === 'employee';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
 
@@ -88,10 +93,19 @@ const ShiftPage: React.FC = () => {
 
           // 既存のシフトがない場合のみ希望休を表示
           if (!data[leave.employee_id][day]) {
-            data[leave.employee_id][day] = {
-              isRest: true,
-              restReason: leave.leave_type
-            };
+            // 出勤可能申請は休みではない
+            if (leave.leave_type === '出勤可能') {
+              data[leave.employee_id][day] = {
+                isRest: false,
+                restReason: leave.leave_type // 表示用に保持
+              };
+            } else {
+              // 希望休、有休などは休みとして扱う
+              data[leave.employee_id][day] = {
+                isRest: true,
+                restReason: leave.leave_type
+              };
+            }
           }
         }
       }
@@ -234,9 +248,13 @@ const ShiftPage: React.FC = () => {
 
   const renderShiftCell = (employee: Employee, day: number, dayInfo: { isSunday: boolean, isWednesday: boolean }) => {
     const shift = shiftData[employee.id]?.[day];
-    const cellClass = `border-r border-gray-200 h-20 p-0.5 align-top ${dayInfo.isSunday ? 'bg-pink-50' : dayInfo.isWednesday ? 'bg-green-50' : ''} ${editMode ? 'cursor-pointer hover:bg-yellow-100' : ''}`;
 
-    if (!shift || (!shift.am && !shift.pm && !shift.isRest)) {
+    // 出勤可能申請がある場合は背景色を変更
+    const isAvailableToWork = shift?.restReason === '出勤可能' && !shift.isRest;
+    const baseCellClass = `border-r border-gray-200 h-20 p-0.5 align-top ${dayInfo.isSunday ? 'bg-pink-50' : dayInfo.isWednesday ? 'bg-green-50' : ''} ${editMode ? 'cursor-pointer hover:bg-yellow-100' : ''}`;
+    const cellClass = isAvailableToWork ? `${baseCellClass} bg-cyan-50` : baseCellClass;
+
+    if (!shift || (!shift.am && !shift.pm && !shift.isRest && !isAvailableToWork)) {
       return <td key={day} className={cellClass} onClick={() => handleCellClick(employee.id, day, employee.name)}></td>;
     }
 
@@ -247,6 +265,8 @@ const ShiftPage: React.FC = () => {
       <td key={day} className={cellClass} onClick={() => handleCellClick(employee.id, day, employee.name)}>
         {shift.isRest ? (
           <div className="h-full flex items-center justify-center text-center text-red-600 font-medium text-sm">{timeLabel}</div>
+        ) : isAvailableToWork ? (
+          <div className="h-full flex items-center justify-center text-center text-cyan-600 font-medium text-sm">出勤可能</div>
         ) : (
           <div className="h-full flex flex-col text-xs text-center">
             <div className="h-10 flex items-center justify-center px-0.5 overflow-hidden font-medium text-gray-800">{cellContent}</div>
@@ -272,7 +292,19 @@ const ShiftPage: React.FC = () => {
                 <button onClick={() => changeMonth('next')} className="p-2 rounded-md hover:bg-gray-100"><ChevronRight className="w-5 h-5 text-gray-600" /></button>
             </div>
             <div className="flex items-center gap-2">
-                <button onClick={() => setEditMode(!editMode)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${editMode ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-700'}`}><Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}</button>
+                <button
+                  onClick={() => setEditMode(!editMode)}
+                  disabled={isEmployee}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    isEmployee
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : editMode
+                        ? 'bg-yellow-500 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}
+                </button>
                 <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
             </div>
         </div>

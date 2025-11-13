@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { User, AuthState, LoginCredentials } from '@/types/auth'
-import { authenticate, logout as apiLogout } from '@/lib/auth'
 import { getSession, saveSession, createSession, clearSession } from '@/lib/session'
 
 interface AuthContextType extends AuthState {
@@ -35,10 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (credentials: LoginCredentials) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
-      
-      const user = await authenticate(credentials)
-      if (!user) throw new Error('認証に失敗しました')
 
+      // ログインAPIを呼び出し
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials)
+      })
+
+      const result = await response.json()
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error?.message || '認証に失敗しました')
+      }
+
+      const user = result.data as User
       const session = createSession(user, credentials.remember_me)
       saveSession(session)
 
@@ -54,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const handleLogout = async () => {
-    await apiLogout()
     clearSession()
     setAuthState({
       user: null,

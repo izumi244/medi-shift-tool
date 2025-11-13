@@ -10,7 +10,18 @@
       "Bash(git push:*)",
       "Bash(rm:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)",
+      "Bash(nul)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(npm install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm run setup:admin:*)",
+      "Bash(npm run setup:existing-employees:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []

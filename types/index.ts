@@ -46,8 +46,22 @@ export interface Employee {
   notes?: string
   order_index?: number
   is_active: boolean
+  employee_number?: string // 従業員番号（emp001形式）
+  password_hash?: string
+  password_changed?: boolean
+  session_token?: string
+  last_login?: string
+  is_system_account?: boolean
   created_at: string
   updated_at: string
+}
+
+// 従業員アカウント作成時の戻り値
+export interface EmployeeAccountInfo {
+  employee_id: string
+  employee_number: string
+  initial_password: string
+  created_at: string
 }
 
 // 配置場所

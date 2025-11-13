@@ -3,7 +3,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { Employee } from '@/types'
+import { Employee, EmployeeAccountInfo } from '@/types'
+import { createEmployeeAccount } from '@/lib/auth'
 
 // GET: 全従業員の取得
 export async function GET(request: NextRequest) {
@@ -38,10 +39,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: 新しい従業員の作成
+// POST: 新しい従業員の作成（アカウント自動作成）
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerSupabaseClient()
     const body = await request.json()
 
     // 必須フィールドのバリデーション
@@ -55,37 +55,54 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabase
+    const supabase = createServerSupabaseClient()
+
+    // 現在の最大order_indexを取得
+    const { data: maxOrderData } = await supabase
       .from('employees')
-      .insert([
-        {
-          name: body.name,
-          employment_type: body.employment_type,
-          job_type: body.job_type,
-          assignable_workplaces_by_day: body.assignable_workplaces_by_day || {},
-          assignable_shift_pattern_ids: body.assignable_shift_pattern_ids || [],
-          day_constraints: body.day_constraints || [],
-          available_days: body.available_days || [],
-          phone: body.phone,
-          email: body.email,
-          notes: body.notes,
-          is_active: true
-        }
-      ])
+      .select('order_index')
+      .order('order_index', { ascending: false })
+      .limit(1)
+      .single()
+
+    const nextOrderIndex = (maxOrderData?.order_index ?? 0) + 1
+
+    // createEmployeeAccount関数を使用してアカウント作成
+    // この関数内で従業員番号とパスワードが自動生成される
+    const accountInfo = await createEmployeeAccount({
+      name: body.name,
+      employment_type: body.employment_type,
+      job_type: body.job_type,
+      max_days_per_week: body.max_days_per_week || 5,
+      max_hours_per_month: body.max_hours_per_month || 160
+    })
+
+    // アカウント作成後、追加のフィールドを更新（order_indexも設定）
+    const { data: updatedEmployee, error: updateError } = await supabase
+      .from('employees')
+      .update({
+        assignable_workplaces_by_day: body.assignable_workplaces_by_day || {},
+        assignable_shift_pattern_ids: body.assignable_shift_pattern_ids || [],
+        day_constraints: body.day_constraints || [],
+        available_days: body.available_days || [],
+        phone: body.phone,
+        email: body.email,
+        notes: body.notes,
+        order_index: nextOrderIndex
+      })
+      .eq('id', accountInfo.employee_id)
       .select()
       .single()
 
-    if (error) {
-      console.error('Error creating employee:', error)
-      return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
-        { status: 500 }
-      )
+    if (updateError) {
+      console.error('Error updating employee fields:', updateError)
     }
 
+    // アカウント情報を含めて返す
     return NextResponse.json({
       success: true,
-      data: data as Employee
+      data: updatedEmployee as Employee,
+      accountInfo: accountInfo as EmployeeAccountInfo
     }, { status: 201 })
   } catch (error: any) {
     console.error('Unexpected error in POST /api/employees:', error)

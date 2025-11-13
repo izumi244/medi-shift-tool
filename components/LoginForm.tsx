@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { Lock, User, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { LoginCredentials } from '@/types/auth'
-import { validateUserId, validatePassword } from '@/lib/auth'
 
 export default function LoginForm() {
   const router = useRouter()
@@ -26,14 +25,10 @@ export default function LoginForm() {
 
     if (!formData.user_id) {
       newErrors.user_id = 'ユーザーIDを入力してください'
-    } else if (!validateUserId(formData.user_id)) {
-      newErrors.user_id = 'ユーザーIDは小文字5文字+数字3桁で入力してください'
     }
 
     if (!formData.password) {
       newErrors.password = 'パスワードを入力してください'
-    } else if (!validatePassword(formData.password)) {
-      newErrors.password = 'パスワードは小文字5文字+数字3桁で入力してください'
     }
 
     setErrors(newErrors)
@@ -79,12 +74,11 @@ export default function LoginForm() {
                 <input
                   type="text"
                   value={formData.user_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, user_id: e.target.value.toLowerCase() }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, user_id: e.target.value }))}
                   className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-200 transition-colors ${
                     errors.user_id ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-indigo-500'
                   }`}
-                  placeholder="例: tanaka123"
-                  maxLength={8}
+                  placeholder="例: emp001"
                   disabled={isLoading}
                 />
               </div>
@@ -106,7 +100,6 @@ export default function LoginForm() {
                     errors.password ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-indigo-500'
                   }`}
                   placeholder="パスワードを入力"
-                  maxLength={8}
                   disabled={isLoading}
                 />
                 <button
@@ -152,16 +145,6 @@ export default function LoginForm() {
               {isLoading ? 'ログイン中...' : 'ログイン'}
             </button>
           </form>
-
-          {/* デモユーザー情報 */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 mb-2">デモ用ログイン情報:</p>
-            <div className="text-xs space-y-1">
-              <div>管理者: admin123 / admin123</div>
-              <div>従業員: nurse456 / nurse456</div>
-              <div>開発者: devel789 / devel789</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

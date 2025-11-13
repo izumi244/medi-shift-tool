@@ -12,6 +12,7 @@ import {
   Scissors
 } from 'lucide-react'
 import { useShiftData } from '@/contexts/ShiftDataContext'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface ManagementCard {
   id: string
@@ -34,13 +35,19 @@ interface DataInputPageProps {
 }
 
 export default function DataInputPage({ onNavigate }: DataInputPageProps) {
-  const { employees, leaveRequests, workplaces, constraints } = useShiftData()
+  const { user } = useAuth()
+  const { employees, leaveRequests, workplaces, constraints, generateShift } = useShiftData()
   const [targetMonth, setTargetMonth] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   })
   const [specialRequests, setSpecialRequests] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+
+  // 従業員モードかどうか
+  const isEmployee = user?.role === 'employee'
+  // 従業員がアクセス可能なページ
+  const employeeAllowedPages = ['leave', 'shift']
 
   // 管理機能カード（統計・レポートを削除）
   const managementCards: ManagementCard[] = [
@@ -134,6 +141,11 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
   }, [employees, leaveRequests, workplaces, constraints])
 
   const handleCardClick = (cardId: string) => {
+    // 従業員モードで制限されたカードはクリックできない
+    if (isEmployee && !employeeAllowedPages.includes(cardId)) {
+      return
+    }
+
     if (onNavigate) {
       onNavigate(cardId)
     } else {
@@ -149,20 +161,31 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
     }
 
     setIsGenerating(true)
-    
+
     try {
-      // AIシフト作成のシミュレーション
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      
-      alert(`${targetMonth}のシフトを作成しました！\n特別要望: ${specialRequests || 'なし'}`)
-      
-      // シフト表示ページに遷移
-      if (onNavigate) {
-        onNavigate('shift')
+      // Dify Workflow APIを使ってシフトを生成
+      console.log('シフト生成開始:', targetMonth)
+      console.log('特別要望:', specialRequests || 'なし')
+
+      const result = await generateShift(targetMonth, specialRequests || undefined)
+
+      console.log('シフト生成結果:', result)
+      console.log('生成されたシフト数:', result.shifts?.length || 0)
+
+      if (result.shifts && result.shifts.length > 0) {
+        alert(`${targetMonth}のシフトを作成しました！\n生成されたシフト数: ${result.shifts.length}`)
+
+        // シフト表示ページに遷移
+        if (onNavigate) {
+          onNavigate('shift')
+        }
+      } else {
+        throw new Error('シフトが生成されませんでした')
       }
-      
+
     } catch (error) {
-      alert('シフト作成中にエラーが発生しました')
+      console.error('Shift generation error:', error)
+      alert(`シフト作成中にエラーが発生しました\n${error instanceof Error ? error.message : ''}`)
     } finally {
       setIsGenerating(false)
     }
@@ -182,12 +205,12 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
       </div>
 
       {/* AIシフト作成セクション */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-200">
+      <div className={`bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-8 border border-indigo-200 ${isEmployee ? 'opacity-50' : ''}`}>
         <h3 className="text-2xl font-bold text-indigo-700 mb-6 flex items-center gap-3">
           <Bot className="w-7 h-7" />
           AIシフト作成
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -197,10 +220,11 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
               type="month"
               value={targetMonth}
               onChange={(e) => setTargetMonth(e.target.value)}
-              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+              disabled={isEmployee}
+              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               特別要望
@@ -210,17 +234,18 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               placeholder=""
-              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+              disabled={isEmployee}
+              className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800 disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
         </div>
-        
+
         <div className="text-center">
           <button
             onClick={handleGenerateShift}
-            disabled={isGenerating}
+            disabled={isGenerating || isEmployee}
             className={`inline-flex items-center gap-3 px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
-              isGenerating
+              isGenerating || isEmployee
                 ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                 : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105'
             }`}
@@ -242,26 +267,34 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
 
       {/* 管理機能カード */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {managementCards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => handleCardClick(card.id)}
-            className={`group relative overflow-hidden p-8 rounded-2xl bg-gradient-to-br ${card.gradientFrom} ${card.gradientTo} text-white shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 text-left`}
-          >
-            {/* 背景装飾 */}
-            <div className="absolute inset-0 bg-white opacity-10 transform -skew-y-6 group-hover:skew-y-6 transition-transform duration-300"></div>
-            
-            <div className="relative z-10">
-              <div className="mb-4">
-                {card.icon}
+        {managementCards.map((card) => {
+          const isDisabled = isEmployee && !employeeAllowedPages.includes(card.id)
+          return (
+            <button
+              key={card.id}
+              onClick={() => handleCardClick(card.id)}
+              disabled={isDisabled}
+              className={`group relative overflow-hidden p-8 rounded-2xl bg-gradient-to-br ${card.gradientFrom} ${card.gradientTo} text-white shadow-xl transition-all duration-300 text-left ${
+                isDisabled
+                  ? 'opacity-40 cursor-not-allowed'
+                  : 'hover:shadow-2xl transform hover:scale-105'
+              }`}
+            >
+              {/* 背景装飾 */}
+              <div className={`absolute inset-0 bg-white opacity-10 transform -skew-y-6 transition-transform duration-300 ${!isDisabled ? 'group-hover:skew-y-6' : ''}`}></div>
+
+              <div className="relative z-10">
+                <div className="mb-4">
+                  {card.icon}
+                </div>
+                <h3 className="text-xl font-bold mb-2">{card.title}</h3>
+                <p className="text-sm opacity-90 leading-relaxed">
+                  {card.description}
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-2">{card.title}</h3>
-              <p className="text-sm opacity-90 leading-relaxed">
-                {card.description}
-              </p>
-            </div>
-          </button>
-        ))}
+            </button>
+          )
+        })}
       </div>
 
       {/* 統計カード */}

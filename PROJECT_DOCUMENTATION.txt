@@ -1,0 +1,1841 @@
+================================================================================
+                  Shift_M プロジェクト完全ドキュメント
+                メディ様専用シフト作成ツール - 技術仕様書
+================================================================================
+
+作成日: 2025-11-06
+バージョン: 1.0.0
+ライセンス: UNLICENSED (メディ様専用)
+
+================================================================================
+目次
+================================================================================
+
+1. プロジェクト概要
+2. システムアーキテクチャ
+3. 技術スタック
+4. ディレクトリ構造
+5. データベース設計
+6. 型定義システム
+7. コンポーネント設計
+8. 状態管理
+9. API設計
+10. 認証システム
+11. UI/UXデザインシステム
+12. 開発・デプロイメント
+13. コーディング規約
+14. 今後の拡張予定
+
+================================================================================
+1. プロジェクト概要
+================================================================================
+
+【プロジェクト名】
+Shift_M (Medical Shift Management System)
+
+【目的】
+医療機関（クリニック・健診センター）向けの看護師・臨床検査技師のシフト作成・管理を
+AIを活用して効率化するWebアプリケーション
+
+【主要機能】
+- 従業員管理（看護師・臨床検査技師の情報管理）
+- 配置場所管理（クリニック棟・健診棟の各配置先管理）
+- シフトパターン管理（早番・遅番等の勤務時間帯設定）
+- 希望休管理（カレンダー形式での休暇申請・承認）
+- AI制約条件管理（自然言語での制約ルール設定）
+- シフト表示・編集（月次シフト表のビジュアル管理）
+- AIシフト自動生成（将来実装予定）
+
+【対象ユーザー】
+- 管理者: シフト作成・承認・全データ管理
+- スタッフ: 希望休申請・自身のシフト閲覧
+
+【運用環境】
+- デプロイ先: Vercel (本番環境)
+- データベース: Supabase (PostgreSQL)
+- 対応ブラウザ: Chrome, Edge, Safari (最新版)
+- レスポンシブ対応: デスクトップ・タブレット
+
+================================================================================
+2. システムアーキテクチャ
+================================================================================
+
+【全体構成】
+┌─────────────────────────────────────────────────────────┐
+│                    Vercel (本番環境)                      │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │         Next.js 14 App Router Application         │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  React 18 Components (TypeScript)          │  │  │
+│  │  │  - Client Components ('use client')        │  │  │
+│  │  │  - Server Components (default)             │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  Context API (State Management)            │  │  │
+│  │  │  - AuthContext (認証状態)                   │  │  │
+│  │  │  - ShiftDataContext (全データ管理)          │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  │  ┌────────────────────────────────────────────┐  │  │
+│  │  │  API Routes (/app/api/*)                   │  │  │
+│  │  │  - REST API エンドポイント                  │  │  │
+│  │  └────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          ↓↑ HTTP/HTTPS
+┌─────────────────────────────────────────────────────────┐
+│              Supabase (PostgreSQL Database)             │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Tables: employees, workplaces, shifts,           │  │
+│  │          shift_patterns, leave_requests,          │  │
+│  │          ai_constraint_guidelines                 │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Row Level Security (RLS) Policies                │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+
+【アーキテクチャの特徴】
+1. Next.js 14 App Router 採用
+   - ファイルベースルーティング
+   - Server Components によるパフォーマンス最適化
+   - API Routes での RESTful API 実装
+
+2. クライアントサイドレンダリング主体
+   - 'use client' ディレクティブによるインタラクティブUI
+   - Context API でのグローバル状態管理
+   - リアルタイムデータ更新
+
+3. Supabase バックエンド
+   - PostgreSQL データベース
+   - REST API 自動生成
+   - Row Level Security による権限管理
+
+4. TypeScript 完全採用
+   - 型安全性の確保
+   - IDEサポートによる開発効率向上
+   - コンパイル時エラー検出
+
+================================================================================
+3. 技術スタック
+================================================================================
+
+【フロントエンド】
+┌────────────────────────────────────────────────────────┐
+│ フレームワーク                                          │
+├────────────────────────────────────────────────────────┤
+│ Next.js 14.2.33         │ Reactフレームワーク           │
+│ React 18.2.0            │ UIライブラリ                  │
+│ React DOM 18.2.0        │ DOM操作                       │
+└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│ 言語・型定義                                            │
+├────────────────────────────────────────────────────────┤
+│ TypeScript 5.3.3        │ 型安全なJavaScript            │
+│ @types/react 18.2.45    │ React型定義                   │
+│ @types/node 20.10.5     │ Node.js型定義                 │
+└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│ スタイリング                                            │
+├────────────────────────────────────────────────────────┤
+│ Tailwind CSS 3.4.0      │ ユーティリティCSS             │
+│ PostCSS 8.4.32          │ CSS変換ツール                 │
+│ Autoprefixer 10.4.16    │ ベンダープレフィックス自動付与│
+│ @tailwindcss/forms 0.5.7│ フォームスタイリング          │
+│ @tailwindcss/typography │ タイポグラフィ                │
+└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│ UIコンポーネント                                        │
+├────────────────────────────────────────────────────────┤
+│ Lucide React 0.294.0    │ アイコンライブラリ            │
+└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────┐
+│ ユーティリティ                                          │
+├────────────────────────────────────────────────────────┤
+│ date-fns 2.30.0         │ 日付操作ライブラリ            │
+└────────────────────────────────────────────────────────┘
+
+【バックエンド】
+┌────────────────────────────────────────────────────────┐
+│ データベース・API                                       │
+├────────────────────────────────────────────────────────┤
+│ Supabase                │ PostgreSQLバックエンド        │
+│ @supabase/supabase-js   │ Supabaseクライアント          │
+│   ^2.76.1               │                               │
+└────────────────────────────────────────────────────────┘
+
+【開発ツール】
+┌────────────────────────────────────────────────────────┐
+│ リンター・フォーマッター                                │
+├────────────────────────────────────────────────────────┤
+│ ESLint 8.56.0           │ コード品質チェック            │
+│ eslint-config-next      │ Next.js ESLint設定            │
+│   14.2.33               │                               │
+└────────────────────────────────────────────────────────┘
+
+【デプロイメント】
+┌────────────────────────────────────────────────────────┐
+│ ホスティング                                            │
+├────────────────────────────────────────────────────────┤
+│ Vercel                  │ 本番環境ホスティング          │
+│ GitHub                  │ ソースコード管理              │
+└────────────────────────────────────────────────────────┘
+
+【Node.js要件】
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+
+================================================================================
+4. ディレクトリ構造
+================================================================================
+
+Shift_M/
+├── .claude/                          # Claude Code 設定
+│   └── settings.local.json           # ローカル設定（権限管理）
+│
+├── .next/                            # Next.js ビルド出力（自動生成）
+│
+├── app/                              # Next.js 14 App Router
+│   ├── api/                          # API Routes
+│   │   ├── constraints/
+│   │   │   └── route.ts              # AI制約条件 CRUD API
+│   │   ├── employees/
+│   │   │   └── route.ts              # 従業員 CRUD API
+│   │   ├── leave-requests/
+│   │   │   └── route.ts              # 希望休 CRUD API
+│   │   ├── shift-patterns/
+│   │   │   └── route.ts              # シフトパターン CRUD API
+│   │   ├── shifts/
+│   │   │   └── route.ts              # シフト CRUD API
+│   │   └── workplaces/
+│   │       └── route.ts              # 配置場所 CRUD API
+│   │
+│   ├── login/
+│   │   └── page.tsx                  # ログインページ
+│   ├── layout.tsx                    # ルートレイアウト
+│   ├── page.tsx                      # トップページ（メインアプリ）
+│   └── globals.css                   # グローバルCSS
+│
+├── components/                       # Reactコンポーネント
+│   ├── AuthGuard.tsx                 # 認証ガード
+│   ├── ConstraintsPage.tsx           # AI制約条件管理ページ
+│   ├── DataInputPage.tsx             # データ入力・AIシフト作成ページ
+│   ├── EmployeePage.tsx              # 従業員管理ページ
+│   ├── LeavePage.tsx                 # 希望休管理ページ
+│   ├── LoginForm.tsx                 # ログインフォーム
+│   ├── MainLayout.tsx                # メインレイアウト（サイドバー付き）
+│   ├── ShiftPage.tsx                 # シフト表示・編集ページ
+│   ├── ShiftPatternPage.tsx          # シフトパターン管理ページ
+│   └── WorkplacePage.tsx             # 配置場所管理ページ
+│
+├── contexts/                         # React Context
+│   ├── AuthContext.tsx               # 認証コンテキスト
+│   └── ShiftDataContext.tsx          # シフトデータコンテキスト
+│
+├── hooks/                            # カスタムフック
+│   └── useModalManager.ts            # モーダル管理フック
+│
+├── lib/                              # ユーティリティ・ヘルパー
+│   ├── auth.ts                       # 認証ロジック
+│   ├── colors.ts                     # カラー定義（集約）
+│   ├── constants.ts                  # 定数定義（集約）
+│   ├── session.ts                    # セッション管理
+│   └── supabase.ts                   # Supabaseクライアント
+│
+├── types/                            # TypeScript型定義
+│   ├── auth.ts                       # 認証関連型
+│   └── index.ts                      # メイン型定義
+│
+├── supabase/                         # データベーススキーマ・マイグレーション
+│   ├── schema.sql                    # データベーススキーマ
+│   ├── seed.sql                      # 初期データ
+│   ├── migrate_day_of_week.sql       # 曜日型マイグレーション
+│   ├── migrate_employees_days.sql    # 従業員曜日マイグレーション
+│   ├── fix_null_day_of_week.sql      # NULL曜日修正
+│   ├── fix_workplaces_null_days.sql  # 配置場所曜日修正
+│   ├── fix_duplicate_days.sql        # 重複曜日修正
+│   └── check_duplicate_days.sql      # 重複チェックSQL
+│
+├── public/                           # 静的ファイル
+│
+├── node_modules/                     # 依存パッケージ（自動）
+│
+├── .env.local                        # 環境変数（Supabase接続情報）
+├── .eslintrc.json                    # ESLint設定
+├── .gitignore                        # Git除外設定
+├── next.config.js                    # Next.js設定
+├── next-env.d.ts                     # Next.js型定義（自動生成）
+├── package.json                      # プロジェクト設定・依存関係
+├── package-lock.json                 # 依存関係ロックファイル
+├── postcss.config.js                 # PostCSS設定
+├── tailwind.config.js                # Tailwind CSS設定
+├── tsconfig.json                     # TypeScript設定
+├── tsconfig.tsbuildinfo              # TypeScriptビルド情報（自動生成）
+├── README.md                         # プロジェクト説明
+└── PROJECT_DOCUMENTATION.txt         # 本ドキュメント
+
+【ディレクトリ設計原則】
+1. 関心の分離
+   - components/: UIコンポーネント
+   - contexts/: 状態管理
+   - lib/: ビジネスロジック
+   - types/: 型定義
+
+2. コロケーション
+   - 関連ファイルを近くに配置
+   - 機能単位でのグループ化
+
+3. スケーラビリティ
+   - 機能追加時の拡張性を考慮
+   - 命名規則の統一
+
+================================================================================
+5. データベース設計
+================================================================================
+
+【データベース管理システム】
+PostgreSQL (Supabase経由)
+
+【テーブル一覧】
+1. shift_patterns        - シフトパターン（早番・遅番等）
+2. employees             - 従業員情報
+3. workplaces            - 配置場所
+4. shifts                - シフト割当
+5. leave_requests        - 希望休申請
+6. ai_constraint_guidelines - AI制約条件
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【1. shift_patterns - シフトパターンテーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: 早番・遅番等の勤務パターンを定義
+
+カラム名               型               制約          説明
+────────────────────────────────────────────────────────
+id                    UUID             PK            主キー
+name                  VARCHAR(100)     NOT NULL      パターン名（例: 早番、遅番）
+start_time            TIME             NOT NULL      開始時刻
+end_time              TIME             NOT NULL      終了時刻
+break_minutes         INTEGER          NOT NULL      休憩時間（分）
+color                 VARCHAR(7)       NOT NULL      表示色（HEX）
+is_active             BOOLEAN          DEFAULT TRUE  有効フラグ
+created_at            TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at            TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_shift_patterns_active ON (is_active)
+
+サンプルデータ:
+┌──────────────────────┬──────────┬──────────┬──────────────┬─────────┐
+│ name                 │ start    │ end      │ break_min    │ color   │
+├──────────────────────┼──────────┼──────────┼──────────────┼─────────┤
+│ 早番                 │ 08:00    │ 17:00    │ 60           │ #e0f2fe │
+│ 遅番                 │ 10:00    │ 19:00    │ 60           │ #dcfce7 │
+│ パート4h             │ 09:00    │ 13:00    │ 0            │ #fef9c3 │
+└──────────────────────┴──────────┴──────────┴──────────────┴─────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【2. employees - 従業員テーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: 看護師・臨床検査技師の情報を管理
+
+カラム名                        型               制約          説明
+─────────────────────────────────────────────────────────────────
+id                             UUID             PK            主キー
+name                           VARCHAR(100)     NOT NULL      氏名
+employment_type                ENUM             NOT NULL      雇用形態
+                                                              ('常勤', 'パート')
+job_type                       ENUM             NOT NULL      職種
+                                                              ('看護師', '臨床検査技師')
+assignable_workplaces_by_day   JSONB            NOT NULL      曜日別配置可能場所
+                                                              Record<string, string[]>
+assignable_shift_pattern_ids   UUID[]           NOT NULL      割当可能シフトパターンID
+day_constraints                JSONB            NOT NULL      曜日制約
+                                                              Array<{if: string, then: string}>
+available_days                 TEXT[]           NOT NULL      出勤可能曜日
+                                                              ['月', '火', '水', ...]
+phone                          VARCHAR(20)                    電話番号
+email                          VARCHAR(255)                   メールアドレス
+notes                          TEXT                           備考
+is_active                      BOOLEAN          DEFAULT TRUE  有効フラグ
+created_at                     TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at                     TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_employees_active ON (is_active)
+- idx_employees_employment_type ON (employment_type)
+- idx_employees_job_type ON (job_type)
+- idx_employees_name ON (name)
+
+ENUM型:
+- employment_type: '常勤', 'パート'
+- job_type: '看護師', '臨床検査技師'
+
+JSONBフィールド例:
+assignable_workplaces_by_day:
+{
+  "月": ["D", "処", "CF外"],
+  "火": ["D", "処"],
+  "水": ["健診G", "健診"]
+}
+
+day_constraints:
+[
+  { "if": "水", "then": "木" }  // 水曜出勤後は木曜休み
+]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【3. workplaces - 配置場所テーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: クリニック棟・健診棟の各配置先を定義
+
+カラム名          型               制約          説明
+──────────────────────────────────────────────────────────
+id               UUID             PK            主キー
+name             VARCHAR(100)     NOT NULL      配置名（例: D, 処, CF外）
+facility         ENUM             NOT NULL      施設
+                                                ('クリニック棟', '健診棟')
+time_slot        ENUM             NOT NULL      時間帯 ('AM', 'PM')
+day_of_week      ENUM             NOT NULL      曜日
+                                                ('月', '火', '水', '木', '金', '土', '日')
+required_count   INTEGER          NOT NULL      必要人数
+remarks          TEXT                           備考
+order_index      INTEGER          NOT NULL      表示順序
+is_active        BOOLEAN          DEFAULT TRUE  有効フラグ
+created_at       TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at       TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_workplaces_active ON (is_active)
+- idx_workplaces_day ON (day_of_week)
+- idx_workplaces_facility ON (facility)
+- idx_workplaces_order ON (order_index)
+
+ユニーク制約:
+- idx_workplaces_unique ON (name, facility, time_slot, day_of_week)
+  WHERE is_active = TRUE
+  ※同じ曜日・時間帯・施設・名前の組み合わせは不可
+
+サンプルデータ（月曜日 AM クリニック棟）:
+┌──────┬─────────────┬───────────┬─────────┬───────────────┬────────┐
+│ name │ facility    │ time_slot │ day     │ required_cnt  │ order  │
+├──────┼─────────────┼───────────┼─────────┼───────────────┼────────┤
+│ D    │ クリニック棟│ AM        │ 月      │ 1             │ 1      │
+│ 処   │ クリニック棟│ AM        │ 月      │ 3             │ 2      │
+│ CF外 │ クリニック棟│ AM        │ 月      │ 1             │ 3      │
+│ CF中 │ クリニック棟│ AM        │ 月      │ 1             │ 4      │
+└──────┴─────────────┴───────────┴─────────┴───────────────┴────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【4. shifts - シフト割当テーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: 従業員×日付のシフト割当を管理
+
+カラム名              型               制約          説明
+────────────────────────────────────────────────────────────
+id                   UUID             PK            主キー
+employee_id          UUID             NOT NULL FK   従業員ID
+date                 DATE             NOT NULL      日付
+shift_pattern_id     UUID             FK            シフトパターンID（NULL可）
+am_workplace         VARCHAR(100)                   AM配置場所名
+pm_workplace         VARCHAR(100)                   PM配置場所名
+custom_start_time    TIME                           カスタム開始時刻
+custom_end_time      TIME                           カスタム終了時刻
+is_rest              BOOLEAN          DEFAULT FALSE 休みフラグ
+rest_reason          TEXT                           休み理由
+status               ENUM             DEFAULT draft ステータス
+                                                    ('draft', 'confirmed', 'modified')
+created_at           TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at           TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_shifts_employee ON (employee_id)
+- idx_shifts_date ON (date)
+- idx_shifts_status ON (status)
+- idx_shifts_employee_date ON (employee_id, date)
+
+ユニーク制約:
+- idx_shifts_unique ON (employee_id, date)
+  ※同じ従業員・日付の組み合わせは不可
+
+外部キー:
+- employee_id → employees(id) ON DELETE CASCADE
+- shift_pattern_id → shift_patterns(id) ON DELETE SET NULL
+
+データパターン:
+1. パターンシフト: shift_pattern_id指定 + am/pm_workplace指定
+2. カスタムシフト: custom_start/end_time指定 + am/pm_workplace指定
+3. 休み: is_rest=TRUE + rest_reason指定
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【5. leave_requests - 希望休申請テーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: 希望休・有休等の申請を管理
+
+カラム名              型               制約          説明
+────────────────────────────────────────────────────────────
+id                   UUID             PK            主キー
+employee_id          UUID             NOT NULL FK   従業員ID
+date                 DATE             NOT NULL      日付
+leave_type           ENUM             NOT NULL      休暇種別
+                                                    ('希望休', '有休', '忌引',
+                                                     '病欠', 'その他', '出勤可能')
+reason               TEXT                           理由
+status               ENUM             DEFAULT '申請中' ステータス
+                                                    ('申請中', '承認', '却下')
+approved_by          UUID             FK            承認者ID
+approved_at          TIMESTAMPTZ                    承認日時
+rejection_reason     TEXT                           却下理由
+created_at           TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at           TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_leave_requests_employee ON (employee_id)
+- idx_leave_requests_date ON (date)
+- idx_leave_requests_status ON (status)
+- idx_leave_requests_employee_date ON (employee_id, date)
+
+外部キー:
+- employee_id → employees(id) ON DELETE CASCADE
+- approved_by → employees(id) ON DELETE SET NULL
+
+申請フロー:
+1. 従業員が申請作成 (status='申請中')
+2. 管理者が承認/却下
+   - 承認: status='承認', approved_by/approved_at設定
+   - 却下: status='却下', rejection_reason設定
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【6. ai_constraint_guidelines - AI制約条件テーブル】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: AIシフト生成時の制約ルールを自然言語で定義
+
+カラム名              型               制約          説明
+────────────────────────────────────────────────────────────
+id                   UUID             PK            主キー
+constraint_content   TEXT             NOT NULL      制約内容（自然言語）
+is_active            BOOLEAN          DEFAULT TRUE  有効フラグ
+created_at           TIMESTAMPTZ      DEFAULT NOW() 作成日時
+updated_at           TIMESTAMPTZ      DEFAULT NOW() 更新日時
+
+インデックス:
+- idx_constraints_active ON (is_active)
+
+サンプルデータ:
+┌────────────────────────────────────────────────────────┐
+│ constraint_content                                     │
+├────────────────────────────────────────────────────────┤
+│ 水曜日に出勤した従業員は、木曜日は休みにする           │
+│ 常勤職員は週5日以上出勤させる                          │
+│ パート職員は週3日まで                                  │
+│ 早番と遅番を連続で入れない                             │
+└────────────────────────────────────────────────────────┘
+
+【データベーストリガー】
+update_updated_at_column():
+  各テーブルのUPDATE時に自動的にupdated_atを更新
+
+【Row Level Security (RLS)】
+全テーブルで有効化
+現在: 全ユーザーアクセス可能（開発環境）
+本番: 認証・認可ポリシーに変更予定
+
+【リレーションシップ図】
+┌──────────────────┐
+│ shift_patterns   │
+│ ├ id (PK)        │
+└──────────────────┘
+         ↑
+         │ FK: shift_pattern_id
+         │
+┌──────────────────┐       ┌──────────────────┐
+│ employees        │       │ workplaces       │
+│ ├ id (PK)        │       │ ├ id (PK)        │
+└──────────────────┘       └──────────────────┘
+    ↑        ↑                     (名前で参照)
+    │        │                            ↓
+    │FK      │FK                  ┌──────────────────┐
+    │        │                    │ shifts           │
+    │        │                    │ ├ id (PK)        │
+    │        │                    │ ├ employee_id    │──→ employees
+    │        │                    │ ├ shift_pattern  │──→ shift_patterns
+    │        │                    │ ├ am_workplace   │
+    │        │                    │ ├ pm_workplace   │
+    │        │                    └──────────────────┘
+    │        │
+    │        │FK: employee_id
+    │        │
+    │   ┌──────────────────┐
+    │   │ leave_requests   │
+    │   │ ├ id (PK)        │
+    │   │ ├ employee_id    │
+    │   │ ├ approved_by    │──→ employees
+    │   └──────────────────┘
+    │
+    │FK: approved_by
+    └────
+
+┌───────────────────────────┐
+│ ai_constraint_guidelines  │
+│ ├ id (PK)                 │
+│ ├ constraint_content      │
+└───────────────────────────┘
+
+================================================================================
+6. 型定義システム
+================================================================================
+
+TypeScript型定義は types/ ディレクトリで一元管理
+
+【ファイル構成】
+types/
+├── index.ts      - メイン型定義（データモデル、UI、API等）
+└── auth.ts       - 認証関連型定義
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【types/index.ts - メイン型定義】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【基本型】
+- PageType           - ページ種別
+- EmploymentType     - 雇用形態 ('常勤' | 'パート')
+- JobType            - 職種 ('看護師' | '臨床検査技師')
+- FacilityType       - 施設種別 ('クリニック棟' | '健診棟')
+- TimeSlot           - 時間帯 ('AM' | 'PM')
+- ShiftType          - シフト種別 ('早番' | '遅番' | 'カスタム')
+- LeaveType          - 休暇種別
+- RequestStatus      - 申請ステータス ('申請中' | '承認' | '却下')
+- DayOfWeek          - 曜日 ('月' | '火' | ... | '日')
+
+【データモデル型】
+interface ShiftPattern {
+  id: string
+  name: string
+  start_time: string
+  end_time: string
+  break_minutes: number
+  color: string
+  created_at?: string
+  updated_at?: string
+}
+
+interface Employee {
+  id: string
+  name: string
+  employment_type: EmploymentType
+  job_type: JobType
+  assignable_workplaces_by_day: Record<string, string[]>
+  assignable_shift_pattern_ids: string[]
+  day_constraints: Array<{ if: string; then: string }>
+  available_days: string[]
+  phone?: string
+  email?: string
+  notes?: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface Workplace {
+  id: string
+  name: string
+  facility: FacilityType
+  time_slot: TimeSlot
+  day_of_week: DayOfWeek
+  required_count: number
+  remarks?: string
+  order_index: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface Shift {
+  id: string
+  employee_id: string
+  date: string
+  shift_pattern_id?: string
+  am_workplace?: string
+  pm_workplace?: string
+  custom_start_time?: string
+  custom_end_time?: string
+  is_rest?: boolean
+  rest_reason?: string
+  status: 'draft' | 'confirmed' | 'modified'
+  created_at: string
+  updated_at: string
+}
+
+interface LeaveRequest {
+  id: string
+  employee_id: string
+  date: string
+  leave_type: LeaveType
+  reason?: string
+  status: RequestStatus
+  approved_by?: string
+  approved_at?: string
+  rejection_reason?: string
+  created_at: string
+  updated_at: string
+}
+
+interface AIConstraintGuideline {
+  id: string
+  constraint_content: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+【API型】
+interface APIResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: APIError
+}
+
+interface APIError {
+  code: string
+  message: string
+  details?: Record<string, any>
+  timestamp: string
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【types/auth.ts - 認証型定義】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type UserRole = 'admin' | 'employee' | 'developer'
+
+interface User {
+  id: string
+  user_id: string        // tanaka123 形式
+  name: string
+  role: UserRole
+  created_at: string
+  last_login?: string
+}
+
+interface LoginCredentials {
+  user_id: string
+  password: string
+  remember_me: boolean
+}
+
+interface AuthState {
+  user: User | null
+  isLoading: boolean
+  isAuthenticated: boolean
+}
+
+interface SessionData {
+  user: User
+  expires_at: number
+  remember_me: boolean
+}
+
+================================================================================
+7. コンポーネント設計
+================================================================================
+
+全コンポーネントは components/ ディレクトリに配置
+'use client' ディレクティブでクライアントコンポーネント化
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【コンポーネント一覧】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌──────────────────────┬────────────────────────────────┐
+│ コンポーネント名     │ 役割                           │
+├──────────────────────┼────────────────────────────────┤
+│ AuthGuard.tsx        │ 認証済みユーザーのみアクセス可 │
+│ LoginForm.tsx        │ ログインフォーム               │
+│ MainLayout.tsx       │ サイドバー付きメインレイアウト │
+│ DataInputPage.tsx    │ データ入力・AIシフト作成       │
+│ EmployeePage.tsx     │ 従業員管理（CRUD）             │
+│ WorkplacePage.tsx    │ 配置場所管理（CRUD）           │
+│ ShiftPatternPage.tsx │ シフトパターン管理（CRUD）     │
+│ LeavePage.tsx        │ 希望休管理（カレンダー・CRUD） │
+│ ConstraintsPage.tsx  │ AI制約条件管理（CRUD）         │
+│ ShiftPage.tsx        │ シフト表示・編集               │
+└──────────────────────┴────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【MainLayout.tsx - メインレイアウト】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+構造:
+┌────────────────────────────────────────────────────┐
+│ Header (ユーザー名・ログアウトボタン)              │
+├──────────┬─────────────────────────────────────────┤
+│          │                                         │
+│ Sidebar  │ Main Content Area                       │
+│          │                                         │
+│ - ナビ   │ {children}                              │
+│   メニュ │ (各ページコンポーネント)                │
+│   ー     │                                         │
+│          │                                         │
+└──────────┴─────────────────────────────────────────┘
+
+サイドバーメニュー:
+- シフト作成（DataInputPage）
+- 従業員管理（EmployeePage）
+- 配置場所管理（WorkplacePage）
+- シフトパターン管理（ShiftPatternPage）
+- 希望休管理（LeavePage）
+- AI制約条件管理（ConstraintsPage）
+- シフト表示（ShiftPage）
+
+状態管理:
+- currentPage: ページ切り替え
+- onNavigate: ページ遷移ハンドラ
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【EmployeePage.tsx - 従業員管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- 従業員一覧表示（テーブル形式）
+- 従業員追加・編集・削除
+- 雇用形態・職種フィルタリング
+- モーダルでのフォーム入力
+
+主要機能:
+1. 従業員一覧
+   - 名前、雇用形態、職種、出勤可能日、操作ボタン
+   - アクティブ/非アクティブ切り替え
+
+2. 従業員追加/編集モーダル
+   - 基本情報: 名前、雇用形態、職種
+   - 出勤可能日: 曜日選択
+   - 曜日別配置可能場所: 曜日ごとにチェックボックス
+   - 割当可能シフトパターン: 複数選択
+   - 曜日制約: 「〇曜日出勤後は△曜日休み」形式
+   - 連絡先: 電話、メール
+   - 備考
+
+使用フック:
+- useShiftData(): 従業員データ取得・操作
+- useModalManager(): モーダル開閉管理
+
+カラー定義:
+- employmentTypeColors (lib/colors.ts)
+- JOB_TYPE_ICONS (lib/constants.ts)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【WorkplacePage.tsx - 配置場所管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- 曜日・施設・時間帯別の配置場所一覧
+- 配置場所追加・編集・削除
+- 表示順序変更（↑↓ボタン）
+- タブ切り替え（クリニック棟/健診棟）
+
+レイアウト:
+┌────────────────────────────────────────────────────┐
+│ 曜日選択ボタン: 月 火 水 木 金 土 日               │
+├────────────────────────────────────────────────────┤
+│ ┌─ クリニック棟 ─┐ ┌─ 健診棟 ─┐             │
+│ │                  │ │            │             │
+│ │ AM配置場所       │ │ AM配置場所 │             │
+│ │ - D (1人)        │ │ - 健診G    │             │
+│ │ - 処 (3人)       │ │ - 健診     │             │
+│ │                  │ │            │             │
+│ │ PM配置場所       │ │ PM配置場所 │             │
+│ │ - D (1人)        │ │ - 健診     │             │
+│ │ - 処 (4人)       │ │            │             │
+│ └──────────────────┘ └────────────┘             │
+└────────────────────────────────────────────────────┘
+
+主要機能:
+1. 曜日別表示
+   - 曜日ボタンで切り替え
+   - AM/PMタブで時間帯切り替え
+
+2. 配置場所カード
+   - 名前、必要人数、備考、順序変更ボタン
+   - 編集・削除ボタン
+
+3. 配置場所追加/編集モーダル
+   - 配置名、施設、時間帯、曜日
+   - 必要人数、備考
+
+カラー定義:
+- facilityColors (lib/colors.ts)
+- DAY_LABELS (lib/constants.ts)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【LeavePage.tsx - 希望休管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- 月次カレンダー表示
+- 希望休申請・編集・削除
+- ステータス別フィルタリング（申請中/承認/却下）
+- 従業員別フィルタリング
+- リスト表示との切り替え
+
+レイアウト（カレンダー表示）:
+┌────────────────────────────────────────────────────┐
+│ ◀ 2025年11月 ▶           [カレンダー] [リスト]    │
+├────┬────┬────┬────┬────┬────┬────┬────┬───┤
+│    │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │    │    │
+├────┼────┼────┼────┼────┼────┼────┼────┼───┤
+│ 7  │ 8  │ 9  │ 10 │ 11 │ 12 │ 13 │    │    │
+│    │    │    │🔵  │🟢  │    │    │    │    │
+│    │    │    │山田│佐藤│    │    │    │    │
+└────┴────┴────┴────┴────┴────┴────┴────┴───┘
+
+記号:
+- 🔵 申請中（黄色背景）
+- 🟢 承認（緑背景）
+- 🔴 却下（赤背景）
+
+主要機能:
+1. 月次カレンダー
+   - 日付セルに希望休申請を表示
+   - ステータス別に色分け
+   - セルクリックで詳細モーダル
+
+2. 希望休申請モーダル
+   - 従業員選択
+   - 日付選択
+   - 休暇種別（希望休/有休/忌引/病欠/その他）
+   - 理由入力
+
+3. 承認/却下機能
+   - 管理者のみ
+   - 却下理由入力
+
+カラー定義:
+- statusColors (lib/colors.ts)
+- leaveTypeColors (lib/colors.ts)
+
+動的日付設定:
+- currentMonth: 現在月を自動設定
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【ShiftPage.tsx - シフト表示・編集】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- 月次シフト表の表形式表示
+- セル単位での編集（編集モード時）
+- シフトパターン/カスタム時間/休み設定
+- 曜日制約チェック（編集時）
+
+レイアウト:
+┌────────────────────────────────────────────────────┐
+│ ◀ 2025年11月 ▶       [編集] [PDF]                 │
+├──────────┬───┬───┬───┬───┬───┬───┬───┬───┤
+│ 従業員   │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │...│
+│          │(月)│(火)│(水)│(木)│(金)│(土)│(日)│   │
+├──────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 佐藤花子 │D  │D  │   │D  │D  │D  │休 │   │
+│          │処 │処 │   │処 │処 │処 │み │   │
+│          │8-17│8-17│ │8-17│8-17│8-17│  │   │
+├──────────┼───┼───┼───┼───┼───┼───┼───┼───┤
+│ 鈴木一郎 │処 │処 │健診│処 │処 │   │   │   │
+│          │   │   │G  │   │   │   │   │   │
+│          │10-19│10-19│8-17│10-19│10-19│ │ │ │
+└──────────┴───┴───┴───┴───┴───┴───┴───┴───┘
+
+セル情報:
+- 上段: AM/PM配置場所
+- 下段: 勤務時間（シフトパターンまたはカスタム）
+
+主要機能:
+1. シフト表表示
+   - 月次カレンダー形式
+   - 従業員×日付のマトリクス
+   - 日曜日・水曜日の背景色変更
+
+2. セル編集モーダル
+   - 勤務タイプ選択（パターン/カスタム/休み）
+   - AM/PM配置場所入力
+   - シフトパターン選択
+   - カスタム時間入力
+   - 休み理由選択
+
+3. 曜日制約チェック
+   - 編集時に従業員の曜日制約を検証
+   - 違反時はアラート表示
+
+動的日付設定:
+- currentDate: 現在月の1日を自動設定
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【DataInputPage.tsx - データ入力・AIシフト作成】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- 各管理機能へのナビゲーション
+- AIシフト作成（対象月・特別要望入力）
+- 統計カード表示（従業員数、希望休件数等）
+
+レイアウト:
+┌────────────────────────────────────────────────────┐
+│ AIシフト作成                                       │
+│ ┌────────────────────────────────────────────────┐│
+│ │ 対象月: 2025-11    特別要望: [入力欄]           ││
+│ │ [AIシフト作成開始]                              ││
+│ └────────────────────────────────────────────────┘│
+├────────────────────────────────────────────────────┤
+│ 管理機能カード                                     │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐         │
+│ │ 従業員管理 │ │ 配置場所  │ │ シフト   │         │
+│ │ 管理      │ │ パターン  │ │ 管理     │         │
+│ └─────────┘ └─────────┘ └─────────┘         │
+└────────────────────────────────────────────────────┘
+
+動的日付設定:
+- targetMonth: 現在月（YYYY-MM形式）を自動設定
+
+統計情報:
+- 登録従業員数
+- 今月の希望休件数
+- 配置場所数
+- AI制約ルール数
+
+================================================================================
+8. 状態管理
+================================================================================
+
+Context APIによるグローバル状態管理
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【ShiftDataContext - シフトデータ管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: 全シフトデータの一元管理とCRUD操作提供
+
+提供データ:
+- employees: Employee[]
+- workplaces: Workplace[]
+- shiftPatterns: ShiftPattern[]
+- shifts: Shift[]
+- leaveRequests: LeaveRequest[]
+- constraints: AIConstraintGuideline[]
+- loading: boolean
+
+提供メソッド:
+【従業員】
+- addEmployee(employee): Promise<Employee>
+- updateEmployee(id, updates): Promise<void>
+- deleteEmployee(id): Promise<void>
+- getEmployeeById(id): Employee | undefined
+
+【配置場所】
+- addWorkplace(workplace): Promise<Workplace>
+- updateWorkplace(id, updates): Promise<void>
+- deleteWorkplace(id): Promise<void>
+- getWorkplaceById(id): Workplace | undefined
+
+【シフトパターン】
+- addShiftPattern(pattern): Promise<ShiftPattern>
+- updateShiftPattern(id, updates): Promise<void>
+- deleteShiftPattern(id): Promise<void>
+- getShiftPatternById(id): ShiftPattern | undefined
+
+【シフト】
+- addShift(shift): Promise<Shift>
+- updateShift(id, updates): Promise<void>
+- deleteShift(id): Promise<void>
+- getShiftById(id): Shift | undefined
+- getShiftsByMonth(year, month): Shift[]
+- bulkUpsertShifts(shifts): Promise<void>
+
+【希望休】
+- addLeaveRequest(leave): Promise<LeaveRequest>
+- updateLeaveRequest(id, updates): Promise<void>
+- deleteLeaveRequest(id): Promise<void>
+- getLeaveRequestById(id): LeaveRequest | undefined
+- getLeaveRequestsByMonth(year, month): LeaveRequest[]
+
+【制約】
+- addConstraint(constraint): Promise<AIConstraintGuideline>
+- updateConstraint(id, updates): Promise<void>
+- deleteConstraint(id): Promise<void>
+- getConstraintById(id): AIConstraintGuideline | undefined
+
+【データ更新】
+- refreshAllData(): Promise<void>
+
+データフロー:
+1. 初回マウント時にSupabaseから全データ取得
+2. CRUD操作時にSupabase APIを呼び出し
+3. 成功後にローカル状態を更新
+4. エラー時はアラート表示
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【AuthContext - 認証管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+目的: ユーザー認証状態管理とログイン/ログアウト処理
+
+提供データ:
+- user: User | null
+- isLoading: boolean
+- isAuthenticated: boolean
+
+提供メソッド:
+- login(credentials: LoginCredentials): Promise<void>
+- logout(): Promise<void>
+
+認証フロー:
+1. ログインフォーム入力
+2. authenticate() でユーザー検証
+3. セッション作成・保存
+4. AuthContext状態更新
+5. メインページへリダイレクト
+
+セッション管理:
+- localStorage保存（remember_me=true時）
+- sessionStorage保存（remember_me=false時）
+- 有効期限: 7日間（remember_me）/ 1日（通常）
+
+================================================================================
+9. API設計
+================================================================================
+
+全APIは app/api/ 配下にRoute Handlersとして実装
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【API エンドポイント一覧】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌────────────────────────────────────────────────────────┐
+│ エンドポイント           │ メソッド │ 説明           │
+├────────────────────────────────────────────────────────┤
+│ /api/employees           │ GET      │ 従業員一覧取得 │
+│                          │ POST     │ 従業員作成     │
+│                          │ PUT      │ 従業員更新     │
+│                          │ DELETE   │ 従業員削除     │
+├────────────────────────────────────────────────────────┤
+│ /api/workplaces          │ GET      │ 配置場所一覧   │
+│                          │ POST     │ 配置場所作成   │
+│                          │ PUT      │ 配置場所更新   │
+│                          │ DELETE   │ 配置場所削除   │
+├────────────────────────────────────────────────────────┤
+│ /api/shift-patterns      │ GET      │ シフトパターン │
+│                          │ POST     │ 一覧取得/作成/ │
+│                          │ PUT      │ 更新/削除      │
+│                          │ DELETE   │                │
+├────────────────────────────────────────────────────────┤
+│ /api/shifts              │ GET      │ シフト一覧取得 │
+│                          │ POST     │ シフト作成     │
+│                          │ PUT      │ シフト更新     │
+│                          │ DELETE   │ シフト削除     │
+├────────────────────────────────────────────────────────┤
+│ /api/leave-requests      │ GET      │ 希望休一覧取得 │
+│                          │ POST     │ 希望休作成     │
+│                          │ PUT      │ 希望休更新     │
+│                          │ DELETE   │ 希望休削除     │
+├────────────────────────────────────────────────────────┤
+│ /api/constraints         │ GET      │ 制約一覧取得   │
+│                          │ POST     │ 制約作成       │
+│                          │ PUT      │ 制約更新       │
+│                          │ DELETE   │ 制約削除       │
+└────────────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【API 仕様】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+全APIは統一レスポンス形式:
+{
+  "success": true | false,
+  "data": T | null,
+  "error": {
+    "code": string,
+    "message": string,
+    "details": object
+  } | null
+}
+
+【GET /api/employees】
+レスポンス:
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "佐藤花子",
+      "employment_type": "常勤",
+      "job_type": "看護師",
+      ...
+    }
+  ]
+}
+
+【POST /api/employees】
+リクエスト:
+{
+  "name": "佐藤花子",
+  "employment_type": "常勤",
+  "job_type": "看護師",
+  "assignable_workplaces_by_day": { "月": ["D", "処"] },
+  "assignable_shift_pattern_ids": ["uuid1", "uuid2"],
+  "day_constraints": [{ "if": "水", "then": "木" }],
+  "available_days": ["月", "火", "水", "木", "金"]
+}
+
+レスポンス:
+{
+  "success": true,
+  "data": {
+    "id": "new-uuid",
+    "name": "佐藤花子",
+    ...
+  }
+}
+
+【PUT /api/employees】
+リクエスト:
+{
+  "id": "uuid",
+  "name": "佐藤花子（更新）",
+  "phone": "090-1234-5678"
+}
+
+【DELETE /api/employees】
+リクエスト:
+{
+  "id": "uuid"
+}
+
+※他のAPIエンドポイントも同様の形式
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【API実装パターン】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+例: app/api/employees/route.ts
+
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: { code: 'FETCH_ERROR', message: error.message }
+    }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { data, error } = await supabase
+      .from('employees')
+      .insert([body])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: { code: 'CREATE_ERROR', message: error.message }
+    }, { status: 500 })
+  }
+}
+
+================================================================================
+10. 認証システム
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【認証フロー】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. ログインページアクセス (/login)
+   ↓
+2. LoginForm でユーザーID・パスワード入力
+   ↓
+3. AuthContext.login() 呼び出し
+   ↓
+4. lib/auth.ts の authenticate() でユーザー検証
+   - モックユーザーデータと照合
+   - 将来: Supabase Authに移行予定
+   ↓
+5. セッション作成・保存 (lib/session.ts)
+   - remember_me=true: localStorage (7日間)
+   - remember_me=false: sessionStorage (1日)
+   ↓
+6. AuthContext状態更新
+   ↓
+7. メインページへリダイレクト (/)
+   ↓
+8. AuthGuard でセッションチェック
+   - 有効: コンテンツ表示
+   - 無効: /login へリダイレクト
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【モックユーザー】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+lib/auth.ts:
+
+const MOCK_USERS: User[] = [
+  {
+    id: '1',
+    user_id: 'admin',
+    name: '管理者',
+    role: 'admin',
+    created_at: '2025-01-01T00:00:00Z'
+  },
+  {
+    id: '2',
+    user_id: 'tanaka123',
+    name: '田中太郎',
+    role: 'employee',
+    created_at: '2025-01-01T00:00:00Z'
+  }
+]
+
+認証ロジック:
+- パスワードチェック（現在は全て 'password123' で認証通過）
+- 将来: Supabase Auth または独自認証テーブルに移行
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【セッション管理】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+lib/session.ts:
+
+セッションデータ構造:
+{
+  user: User,
+  expires_at: number,  // Unix timestamp
+  remember_me: boolean
+}
+
+保存先:
+- localStorage: remember_me=true
+- sessionStorage: remember_me=false
+
+有効期限:
+- 7日間（remember_me）
+- 1日（通常）
+
+セッション検証:
+- expires_at < Date.now() でセッション無効化
+- AuthGuard で自動チェック
+
+================================================================================
+11. UI/UXデザインシステム
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【カラーパレット】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+lib/colors.ts で一元管理
+
+【雇用形態カラー】
+- 常勤: bg-blue-100 text-blue-800 border-blue-200
+- パート: bg-purple-100 text-purple-800 border-purple-200
+
+【施設カラー】
+- クリニック棟:
+  - bg: bg-blue-50
+  - border: border-blue-200
+  - text: text-blue-800
+  - accent: bg-blue-500
+
+- 健診棟:
+  - bg: bg-green-50
+  - border: border-green-200
+  - text: text-green-800
+  - accent: bg-green-500
+
+【申請ステータスカラー】
+- 申請中: bg-yellow-100 text-yellow-800 border-yellow-200 (Clock アイコン)
+- 承認: bg-green-100 text-green-800 border-green-200 (CheckCircle2)
+- 却下: bg-red-100 text-red-800 border-red-200 (XCircle)
+
+【休暇種別カラー】
+- 希望休: bg-blue-100 text-blue-800
+- 有休: bg-green-100 text-green-800
+- 忌引: bg-gray-100 text-gray-800
+- 病欠: bg-red-100 text-red-800
+- その他: bg-purple-100 text-purple-800
+- 出勤可能: bg-cyan-100 text-cyan-800
+
+【シフトパターンカラー】
+- Blue: #e0f2fe
+- Green: #dcfce7
+- Yellow: #fef9c3
+- Pink: #fce7f3
+- Purple: #f3e8ff
+- Indigo: #e0e7ff
+- Gray: #f3f4f6
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【アイコンシステム】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Lucide React アイコンライブラリ使用
+
+主要アイコン:
+- Users: 従業員
+- MapPin: 配置場所
+- Calendar: 希望休
+- Scissors: シフトパターン
+- Bot: AI制約条件
+- ClipboardList: シフト表示
+- Rocket: シフト作成
+- Clock: 申請中
+- CheckCircle2: 承認
+- XCircle: 却下
+- Play: 開始
+- Plus: 追加
+- Edit3: 編集
+- Trash2: 削除
+
+職種アイコン（絵文字）:
+- 看護師: 🩺
+- 臨床検査技師: 🔬
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【Tailwind CSS設定】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+tailwind.config.js:
+
+カスタムカラー:
+- primary: Indigo系 (#6366f1)
+- secondary: Purple系 (#a855f7)
+- success: Green系 (#22c55e)
+- warning: Yellow系 (#f59e0b)
+- error: Red系 (#ef4444)
+
+カスタムスペーシング:
+- 18: 4.5rem
+- 88: 22rem
+- 100: 25rem
+- 112: 28rem
+- 128: 32rem
+
+カスタムボーダー半径:
+- 4xl: 2rem
+- 5xl: 3rem
+
+カスタムシャドウ:
+- soft: 0 2px 15px rgba(0,0,0,0.08)
+- medium: 0 4px 25px rgba(0,0,0,0.12)
+- strong: 0 8px 40px rgba(0,0,0,0.16)
+- glow: 0 0 20px rgba(99,102,241,0.3)
+
+カスタムアニメーション:
+- bounce-slow: 2s
+- pulse-slow: 3s
+- fade-in: 0.5s
+- slide-up: 0.3s
+- slide-down: 0.3s
+- scale-in: 0.2s
+
+プラグイン:
+- @tailwindcss/forms: フォームスタイリング
+- @tailwindcss/typography: タイポグラフィ
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【レスポンシブデザイン】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ブレークポイント（Tailwind デフォルト）:
+- sm: 640px
+- md: 768px
+- lg: 1024px
+- xl: 1280px
+- 2xl: 1536px
+
+主要対応:
+- グリッドレイアウト: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+- カード配置: flex-col md:flex-row
+- サイドバー: 固定幅（デスクトップ）/ ハンバーガーメニュー（モバイル）
+
+================================================================================
+12. 開発・デプロイメント
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【開発環境セットアップ】
+���━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. リポジトリクローン
+   git clone https://github.com/izumi244/medi-shift-tool.git
+   cd medi-shift-tool
+
+2. 依存パッケージインストール
+   npm install
+
+3. 環境変数設定
+   .env.local ファイル作成:
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+4. 開発サーバー起動
+   npm run dev
+   → http://localhost:3000
+
+5. 型チェック
+   npm run type-check
+
+6. リント
+   npm run lint
+
+7. ビルド
+   npm run build
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【デプロイメント（Vercel）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. GitHub連携
+   - リポジトリ: https://github.com/izumi244/medi-shift-tool
+   - ブランチ: main
+
+2. Vercel設定
+   - プロジェクト作成
+   - 環境変数設定（Supabase接続情報）
+   - 自動デプロイ設定（main ブランチへのプッシュ時）
+
+3. デプロイフロー
+   git add .
+   git commit -m "commit message"
+   git push origin main
+   → Vercel自動デプロイ開始
+   → デプロイ完了後、本番URL確認
+
+4. 環境変数（Vercel）
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+   - SUPABASE_SERVICE_ROLE_KEY
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【データベースセットアップ（Supabase）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Supabaseプロジェクト作成
+
+2. SQLエディタでスキーマ実行
+   supabase/schema.sql を実行
+
+3. 初期データ投入
+   supabase/seed.sql を実行
+
+4. RLSポリシー確認
+   - 全テーブルで有効化されているか確認
+   - 本番環境では適切な権限設定に変更
+
+5. 接続情報取得
+   - Project URL
+   - Anon key
+   - Service role key
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【npm スクリプト】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+package.json:
+
+{
+  "scripts": {
+    "dev": "next dev",           // 開発サーバー起動
+    "build": "next build",       // プロダクションビルド
+    "start": "next start",       // 本番サーバー起動
+    "lint": "next lint",         // ESLint実行
+    "type-check": "tsc --noEmit" // TypeScript型チェック
+  }
+}
+
+================================================================================
+13. コーディング規約
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【TypeScript規約】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. strictモード有効化（tsconfig.json）
+   "strict": true
+
+2. 型定義
+   - 明示的な型定義を推奨
+   - any型の使用は最小限に
+   - interface優先（型の拡張性）
+
+3. 命名規則
+   - 型名: PascalCase (例: Employee, ShiftPattern)
+   - 変数: camelCase (例: employeeList, shiftData)
+   - 定数: UPPER_SNAKE_CASE (例: WORKDAYS, DAY_LABELS)
+   - コンポーネント: PascalCase (例: EmployeePage)
+   - ファイル名: PascalCase（コンポーネント）, camelCase（ユーティリティ）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【React規約】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. コンポーネント定義
+   - 関数コンポーネント推奨
+   - 'use client' ディレクティブを明記（必要時）
+   - Props型定義必須
+
+2. フック使用
+   - useCallback, useMemoで最適化
+   - カスタムフック活用（useModalManager等）
+
+3. 状態管理
+   - ローカル状態: useState
+   - グローバル状態: Context API
+   - 副作用: useEffect
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【スタイリング規約】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Tailwind CSS使用
+   - ユーティリティクラス優先
+   - カスタムCSSは最小限
+
+2. レスポンシブ
+   - モバイルファースト
+   - md, lg ブレークポイント活用
+
+3. カラー
+   - lib/colors.ts で定義された色を使用
+   - ハードコード禁止
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【API規約】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. レスポンス形式統一
+   { success: boolean, data: T, error: APIError }
+
+2. エラーハンドリング
+   - try-catch必須
+   - エラーコード・メッセージ明記
+
+3. HTTPステータスコード
+   - 200: 成功
+   - 400: バリデーションエラー
+   - 500: サーバーエラー
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【Git規約】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. コミットメッセージ形式
+   <種別>: <概要>
+
+   <詳細>
+
+   🤖 Generated with Claude Code
+   Co-Authored-By: Claude <noreply@anthropic.com>
+
+2. 種別
+   - Refactor: リファクタリング
+   - Update: 機能追加・更新
+   - Fix: バグ修正
+   - Clean: コード整理
+   - Add: 新規ファイル追加
+
+3. ブランチ戦略
+   - main: 本番環境
+   - 機能開発: feature/xxx ブランチ
+
+================================================================================
+14. 今後の拡張予定
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【短期（1-3ヶ月）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. AIシフト自動生成機能実装
+   - OpenAI API連携
+   - 制約条件の自然言語解釈
+   - シフト最適化アルゴリズム
+
+2. PDF出力機能
+   - シフト表PDF生成
+   - 印刷レイアウト最適化
+
+3. 通知機能
+   - 希望休申請通知
+   - シフト確定通知
+   - メール/プッシュ通知
+
+4. モバイルアプリ対応
+   - PWA化
+   - ホーム画面追加機能
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【中期（3-6ヶ月）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 本格的認証システム
+   - Supabase Auth移行
+   - 権限管理強化（RBAC）
+   - 2FA対応
+
+2. データ分析機能
+   - シフト統計
+   - 従業員稼働率
+   - 配置最適化レポート
+
+3. カレンダー連携
+   - Google Calendar連携
+   - Outlook連携
+
+4. チャット機能
+   - スタッフ間コミュニケーション
+   - シフト相談・交換機能
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【長期（6ヶ月以上）】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. マルチテナント対応
+   - 複数施設管理
+   - テナント別権限管理
+
+2. 勤怠管理連携
+   - 打刻機能
+   - 勤務時間集計
+
+3. 給与計算連携
+   - 勤務実績から給与計算
+   - 残業・深夜手当自動計算
+
+4. AI制約学習機能
+   - 過去シフトから制約ルール学習
+   - シフト品質向上
+
+================================================================================
+付録: 主要ファイルリファレンス
+================================================================================
+
+【設定ファイル】
+- .env.local: 環境変数（Supabase接続情報）
+- tsconfig.json: TypeScript設定
+- tailwind.config.js: Tailwind CSS設定
+- next.config.js: Next.js設定
+- package.json: プロジェクト設定・依存関係
+
+【型定義】
+- types/index.ts: メイン型定義
+- types/auth.ts: 認証型定義
+
+【ユーティリティ】
+- lib/supabase.ts: Supabaseクライアント
+- lib/auth.ts: 認証ロジック
+- lib/session.ts: セッション管理
+- lib/colors.ts: カラー定義
+- lib/constants.ts: 定数定義
+
+【Context】
+- contexts/AuthContext.tsx: 認証状態管理
+- contexts/ShiftDataContext.tsx: シフトデータ管理
+
+【フック】
+- hooks/useModalManager.ts: モーダル管理
+
+【コンポーネント】
+- components/AuthGuard.tsx: 認証ガード
+- components/LoginForm.tsx: ログインフォーム
+- components/MainLayout.tsx: メインレイアウト
+- components/DataInputPage.tsx: データ入力・AIシフト作成
+- components/EmployeePage.tsx: 従業員管理
+- components/WorkplacePage.tsx: 配置場所管理
+- components/ShiftPatternPage.tsx: シフトパターン管理
+- components/LeavePage.tsx: 希望休管理
+- components/ConstraintsPage.tsx: AI制約条件管理
+- components/ShiftPage.tsx: シフト表示・編集
+
+【API】
+- app/api/employees/route.ts: 従業員API
+- app/api/workplaces/route.ts: 配置場所API
+- app/api/shift-patterns/route.ts: シフトパターンAPI
+- app/api/shifts/route.ts: シフトAPI
+- app/api/leave-requests/route.ts: 希望休API
+- app/api/constraints/route.ts: AI制約条件API
+
+【データベース】
+- supabase/schema.sql: データベーススキーマ
+- supabase/seed.sql: 初期データ
+
+================================================================================
+変更履歴
+================================================================================
+
+【2025-11-06】
+- プロジェクト完全ドキュメント作成
+- リファクタリング完了
+  - lib/colors.ts, lib/constants.ts 作成
+  - 各コンポーネントから重複定義削除
+  - ハードコードされた日付を動的設定に変更
+  - 約200行以上のコード削減
+
+【2025-11-04】
+- 曜日型を日本語に統一（'月', '火', ...）
+- day_of_week マイグレーション実行
+- TypeScriptビルドエラー修正
+- useModalManager フック抽出
+
+【2025-10-28】
+- Supabase統合完了
+- API Routes実装
+- Context API導入
+
+【2025-10-25】
+- プロジェクト初期セットアップ
+- Next.js 14 App Router採用
+- TypeScript完全移行
+
+================================================================================
+問い合わせ・サポート
+================================================================================
+
+プロジェクト管理: GitHub Issues
+https://github.com/izumi244/medi-shift-tool/issues
+
+開発チーム: メディ様専用開発チーム
+
+================================================================================
+ライセンス
+================================================================================
+
+UNLICENSED - メディ様専用プロジェクト
+
+本ドキュメントおよびソースコードの無断転載・複製を禁じます。
+
+================================================================================
+                           ドキュメント終了
+================================================================================

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift M - 運用コスト計算ツール</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .calculator-card {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid #e0e7ff;
+        }
+
+        .input-group {
+            margin-bottom: 2rem;
+        }
+
+        .input-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="number"] {
+            flex: 1;
+            padding: 1rem 1.25rem;
+            font-size: 1.1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .input-unit {
+            font-weight: 600;
+            color: #6b7280;
+            min-width: 60px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e5e7eb;
+            outline: none;
+            margin-top: 0.5rem;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+        }
+
+        .cost-breakdown {
+            background: #f9fafb;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: white;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .cost-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .cost-name {
+            font-weight: 600;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cost-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .badge-free {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-paid {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .cost-value {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
+        .total-cost {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .total-label {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .total-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .info-box p {
+            color: #1e3a8a;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .db-size-indicator {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .db-progress {
+            width: 100%;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 0.5rem;
+        }
+
+        .db-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+            transition: all 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.75rem;
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .db-progress-bar.warning {
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .db-progress-bar.danger {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .db-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 640px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .calculator-card {
+                padding: 1.5rem;
+            }
+
+            .total-value {
+                font-size: 2rem;
+            }
+        }
+
+        .comparison-card {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .comparison-item {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .comparison-item h3 {
+            color: #4f46e5;
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 0.5rem 0;
+        }
+
+        .comparison-note {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .highlight h3,
+        .highlight .comparison-value,
+        .highlight .comparison-note {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 Shift M</h1>
+            <p>AIシフト管理ツール - 運用コスト計算</p>
+        </div>
+
+        <div class="calculator-card">
+            <h2 class="section-title">📊 貴施設の情報を入力してください</h2>
+
+            <div class="input-group">
+                <label class="input-label">従業員数</label>
+                <div class="input-wrapper">
+                    <input type="number" id="employeeCount" value="16" min="1" max="1000" step="1">
+                    <span class="input-unit">人</span>
+                </div>
+                <input type="range" id="employeeSlider" class="slider" value="16" min="1" max="200" step="1">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">月間シフト生成回数</label>
+                <div class="input-wrapper">
+                    <input type="number" id="generationCount" value="1" min="1" max="50" step="1">
+                    <span class="input-unit">回/月</span>
+                </div>
+                <input type="range" id="generationSlider" class="slider" value="1" min="1" max="20" step="1">
+            </div>
+
+            <div class="db-size-indicator">
+                <label class="input-label">📦 データベース容量の使用状況</label>
+                <div class="db-progress">
+                    <div class="db-progress-bar" id="dbProgressBar"></div>
+                </div>
+                <div class="db-info">
+                    <span id="dbUsed">0 MB</span>
+                    <span id="dbStatus">十分な余裕があります</span>
+                </div>
+            </div>
+
+            <div class="cost-breakdown">
+                <div class="cost-item">
+                    <div class="cost-name">
+                        🤖 Claude API（AIシフト生成）
+                        <span class="cost-badge badge-paid">従量課金</span>
+                    </div>
+                    <div class="cost-value" id="claudeCost">¥650</div>
+                </div>
+
+                <div class="cost-item">
+                    <div class="cost-name">
+                        ☁️ Vercel（ホスティング）
+                        <span class="cost-badge badge-paid">Pro</span>
+                    </div>
+                    <div class="cost-value">¥3,000</div>
+                </div>
+
+                <div class="cost-item">
+                    <div class="cost-name">
+                        🗄️ Supabase（データベース）
+                        <span class="cost-badge" id="supabaseBadge">Free</span>
+                    </div>
+                    <div class="cost-value" id="supabaseCost">¥0</div>
+                </div>
+
+                <div class="cost-item">
+                    <div class="cost-name">
+                        🔧 Dify（AIワークフロー）
+                        <span class="cost-badge badge-free">Free</span>
+                    </div>
+                    <div class="cost-value">¥0</div>
+                </div>
+
+                <div class="total-cost">
+                    <div class="total-label">月額合計</div>
+                    <div class="total-value" id="totalCost">¥3,650</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>💡 コストについて</h4>
+                <p id="costInfo">
+                    小規模施設向けの最適なプランです。データベースは無料プランで十分対応できます。
+                </p>
+            </div>
+        </div>
+
+        <div class="comparison-card">
+            <h2 class="section-title">🔥 従来ツールとの比較</h2>
+            <div class="comparison-grid">
+                <div class="comparison-item">
+                    <h3>従来型シフト管理ツール</h3>
+                    <div class="comparison-value">¥15,000~</div>
+                    <div class="comparison-note">月額固定費用<br>従業員数による追加料金あり</div>
+                </div>
+                <div class="comparison-item highlight">
+                    <h3>Shift M</h3>
+                    <div class="comparison-value" id="shiftmCost">¥3,650</div>
+                    <div class="comparison-note">AI自動生成込み<br>従業員数による追加料金なし</div>
+                </div>
+                <div class="comparison-item">
+                    <h3>手動作成（Excel等）</h3>
+                    <div class="comparison-value">¥0</div>
+                    <div class="comparison-note">作業時間: 約8時間/月<br>人件費換算: 約¥12,000相当</div>
+                </div>
+            </div>
+            <div class="info-box" style="margin-top: 1.5rem;">
+                <h4>✨ Shift Mの強み</h4>
+                <p>
+                    <strong>AI自動生成</strong>により、従来8時間かかっていたシフト作成が<strong>わずか数分</strong>で完了。
+                    作業時間を<strong>95%削減</strong>し、人件費換算で月額約12,000円分の業務効率化を実現します。
+                    さらに、公平性の高いシフト配分により、スタッフの満足度向上も期待できます。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 定数定義
+        const CLAUDE_COST_PER_GENERATION = 65; // 1回あたり65円（16人×30日の実測値）
+        const VERCEL_PRO = 3000;
+        const SUPABASE_PRO = 3750;
+        const DIFY_FREE = 0;
+        const SUPABASE_FREE_LIMIT = 500; // MB
+        const SUPABASE_PRO_LIMIT = 8000; // MB
+        const DATA_PER_EMPLOYEE_PER_YEAR = 11 / 1000; // MB (11KB = 0.011MB)
+
+        // 要素取得
+        const employeeInput = document.getElementById('employeeCount');
+        const employeeSlider = document.getElementById('employeeSlider');
+        const generationInput = document.getElementById('generationCount');
+        const generationSlider = document.getElementById('generationSlider');
+        const claudeCostEl = document.getElementById('claudeCost');
+        const supabaseCostEl = document.getElementById('supabaseCost');
+        const supabaseBadgeEl = document.getElementById('supabaseBadge');
+        const totalCostEl = document.getElementById('totalCost');
+        const costInfoEl = document.getElementById('costInfo');
+        const dbProgressBarEl = document.getElementById('dbProgressBar');
+        const dbUsedEl = document.getElementById('dbUsed');
+        const dbStatusEl = document.getElementById('dbStatus');
+        const shiftmCostEl = document.getElementById('shiftmCost');
+
+        // 従業員数の同期
+        employeeInput.addEventListener('input', (e) => {
+            employeeSlider.value = e.target.value;
+            calculate();
+        });
+        employeeSlider.addEventListener('input', (e) => {
+            employeeInput.value = e.target.value;
+            calculate();
+        });
+
+        // 生成回数の同期
+        generationInput.addEventListener('input', (e) => {
+            generationSlider.value = e.target.value;
+            calculate();
+        });
+        generationSlider.addEventListener('input', (e) => {
+            generationInput.value = e.target.value;
+            calculate();
+        });
+
+        function calculate() {
+            const employeeCount = parseInt(employeeInput.value) || 16;
+            const generationCount = parseInt(generationInput.value) || 1;
+
+            // 従業員数に応じたClaude APIコストの線形計算
+            // 基準: 16人で65円/回
+            const costPerGeneration = Math.round((employeeCount / 16) * CLAUDE_COST_PER_GENERATION);
+            const claudeCost = costPerGeneration * generationCount;
+
+            // データベース容量計算（1年分のデータ）
+            const dbUsedMB = employeeCount * DATA_PER_EMPLOYEE_PER_YEAR;
+            const dbUsedPercentage = (dbUsedMB / SUPABASE_FREE_LIMIT) * 100;
+
+            // Supabaseプラン判定
+            let supabaseCost = 0;
+            let supabasePlan = 'Free';
+            let dbLimit = SUPABASE_FREE_LIMIT;
+
+            if (dbUsedMB > SUPABASE_FREE_LIMIT) {
+                supabaseCost = SUPABASE_PRO;
+                supabasePlan = 'Pro';
+                dbLimit = SUPABASE_PRO_LIMIT;
+            }
+
+            // 合計計算
+            const totalCost = claudeCost + VERCEL_PRO + supabaseCost + DIFY_FREE;
+
+            // UI更新
+            claudeCostEl.textContent = `¥${claudeCost.toLocaleString()}`;
+            supabaseCostEl.textContent = `¥${supabaseCost.toLocaleString()}`;
+            totalCostEl.textContent = `¥${totalCost.toLocaleString()}`;
+            shiftmCostEl.textContent = `¥${totalCost.toLocaleString()}`;
+
+            // Supabaseバッジ更新
+            if (supabasePlan === 'Free') {
+                supabaseBadgeEl.className = 'cost-badge badge-free';
+                supabaseBadgeEl.textContent = 'Free';
+            } else {
+                supabaseBadgeEl.className = 'cost-badge badge-paid';
+                supabaseBadgeEl.textContent = 'Pro';
+            }
+
+            // DB容量表示更新
+            const displayPercentage = Math.min((dbUsedMB / dbLimit) * 100, 100);
+            dbProgressBarEl.style.width = `${displayPercentage}%`;
+            dbProgressBarEl.textContent = `${displayPercentage.toFixed(1)}%`;
+            dbUsedEl.textContent = `${dbUsedMB.toFixed(2)} MB / ${dbLimit} MB`;
+
+            // 進捗バーの色変更
+            if (displayPercentage < 50) {
+                dbProgressBarEl.className = 'db-progress-bar';
+                dbStatusEl.textContent = '十分な余裕があります';
+            } else if (displayPercentage < 80) {
+                dbProgressBarEl.className = 'db-progress-bar warning';
+                dbStatusEl.textContent = '使用量が増えています';
+            } else {
+                dbProgressBarEl.className = 'db-progress-bar danger';
+                dbStatusEl.textContent = 'プラン変更を検討してください';
+            }
+
+            // 情報メッセージ更新
+            let infoMessage = '';
+            if (supabasePlan === 'Free') {
+                infoMessage = `従業員${employeeCount}人規模では、データベースは無料プランで十分対応できます。月${generationCount}回のシフト生成で、`;
+                infoMessage += `AI生成コストは${claudeCost.toLocaleString()}円です。`;
+            } else {
+                infoMessage = `従業員${employeeCount}人規模では、データベースはProプラン（月額3,750円）が必要です。`;
+                infoMessage += `月${generationCount}回のシフト生成で、AI生成コストは${claudeCost.toLocaleString()}円です。`;
+            }
+
+            const savedTime = '約8時間';
+            const savedCost = 12000;
+            const roi = savedCost - totalCost;
+            if (roi > 0) {
+                infoMessage += ` 手動作成と比較して、月間${savedTime}の作業時間を削減でき、人件費換算で約${roi.toLocaleString()}円の削減効果があります。`;
+            }
+
+            costInfoEl.textContent = infoMessage;
+        }
+
+        // 初期計算
+        calculate();
+    </script>
+</body>
+</html>

@@ -150,7 +150,8 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     const result = await res.json()
     if (result.success) {
       setEmployees((prev) => [...prev, result.data])
-      return result.data
+      // アカウント情報も返す（新規作成時のみ）
+      return result.accountInfo || result.data
     }
     throw new Error(result.error?.message || 'Failed to add employee')
   }, [])

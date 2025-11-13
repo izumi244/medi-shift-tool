@@ -13,11 +13,14 @@ import {
   Clock,
   RefreshCw,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Key,
+  Check,
+  Copy
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
-import type { Employee, EmploymentType, JobType } from '@/types';
+import type { Employee, EmploymentType, JobType, EmployeeAccountInfo } from '@/types';
 import { employmentTypeColors } from '@/lib/colors';
 import { WORKDAYS, JOB_TYPE_ICONS } from '@/lib/constants';
 
@@ -35,6 +38,11 @@ const EmployeePage: React.FC = () => {
   const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext, reorderEmployee } = useShiftData();
 
   const [searchText, setSearchText] = useState('');
+
+  // アカウント情報モーダル用の状態
+  const [showAccountInfo, setShowAccountInfo] = useState(false);
+  const [accountInfo, setAccountInfo] = useState<EmployeeAccountInfo | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // 配置場所をworkplacesから動的に生成
   const facilityOptions = React.useMemo(() => {
@@ -95,14 +103,37 @@ const EmployeePage: React.FC = () => {
 
   const saveEmployee = async () => {
     if (editingEmployee) {
+      // 更新の場合
       await updateEmployee(editingEmployee.id, formData);
+      closeModal();
     } else {
-      await addEmployee({
+      // 新規追加の場合（アカウント情報を取得）
+      const newAccountInfo = await addEmployee({
         ...formData,
         is_active: true
       });
+
+      // アカウント情報モーダルを表示
+      if (newAccountInfo && 'employee_number' in newAccountInfo) {
+        setAccountInfo(newAccountInfo as EmployeeAccountInfo);
+        setShowAccountInfo(true);
+      }
+      closeModal();
     }
-    closeModal();
+  };
+
+  // アカウント情報モーダルを閉じる
+  const closeAccountInfo = () => {
+    setShowAccountInfo(false);
+    setAccountInfo(null);
+    setCopiedField(null);
+  };
+
+  // クリップボードにコピー
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleDeleteEmployee = async (id: string) => {
@@ -389,6 +420,104 @@ const EmployeePage: React.FC = () => {
                 <button type="button" onClick={saveEmployee} disabled={!formData.name} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{editingEmployee ? '更新' : '追加'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* アカウント情報表示モーダル */}
+      {showAccountInfo && accountInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Key className="w-6 h-6 text-green-600" />
+                  アカウント作成完了
+                </h3>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h4 className="text-lg font-semibold text-gray-800 mb-2">
+                  従業員を追加しました
+                </h4>
+                <p className="text-gray-600 text-sm">
+                  以下のログイン情報を従業員にお伝えください
+                </p>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-orange-700 text-sm font-semibold mb-2">
+                  ⚠️ この画面は一度しか表示されません
+                </p>
+                <p className="text-orange-600 text-xs">
+                  ログイン情報を必ずメモまたはコピーしてください
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    従業員番号
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white px-3 py-2 rounded border text-lg font-mono">
+                      {accountInfo.employee_number}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(accountInfo.employee_number, 'employee_number')}
+                      className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors"
+                      title="コピー"
+                    >
+                      {copiedField === 'employee_number' ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    初期パスワード
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-white px-3 py-2 rounded border text-lg font-mono">
+                      {accountInfo.initial_password}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(accountInfo.initial_password, 'password')}
+                      className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded transition-colors"
+                      title="コピー"
+                    >
+                      {copiedField === 'password' ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-700 text-sm">
+                  <strong>初回ログイン時：</strong>パスワードの変更が必要です
+                </p>
+              </div>
+
+              <button
+                onClick={closeAccountInfo}
+                className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl font-semibold transition-all duration-300"
+              >
+                閉じる
+              </button>
+            </div>
           </div>
         </div>
       )}

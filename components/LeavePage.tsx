@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import type { LeaveRequest, RequestStatus } from '@/types';
 import { statusColors, leaveTypeColors } from '@/lib/colors';
@@ -27,7 +28,8 @@ type LeaveFormData = {
 };
 
 const LeavePage: React.FC = () => {
-  const { employees, leaveRequests, addLeaveRequest, updateLeaveRequest } = useShiftData();
+  const { user } = useAuth();
+  const { employees, leaveRequests, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useShiftData();
   const [currentMonth, setCurrentMonth] = useState(() => {
     const today = new Date();
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -37,6 +39,11 @@ const LeavePage: React.FC = () => {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [requestType, setRequestType] = useState<'leave' | 'work'>('leave');
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+
+  // 従業員モードかどうか
+  const isEmployee = user?.role === 'employee';
+  // ログイン中のユーザーのemployee_id
+  const currentEmployeeId = employees.find(emp => emp.employee_number === user?.employee_number)?.id || '';
 
   const getInitialFormData = useCallback((): LeaveFormData => ({
     employee_id: '',
@@ -56,7 +63,11 @@ const LeavePage: React.FC = () => {
   const openModal = useCallback(() => {
     setRequestType('leave');
     openModalBase();
-  }, [openModalBase]);
+    // 従業員モードの場合は自動的に自分のIDを設定
+    if (isEmployee && currentEmployeeId) {
+      setFormData(prev => ({ ...prev, employee_id: currentEmployeeId }));
+    }
+  }, [openModalBase, isEmployee, currentEmployeeId, setFormData]);
 
   // 従業員名を取得
   const getEmployeeName = (employeeId: string) => {
@@ -458,18 +469,27 @@ const LeavePage: React.FC = () => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   従業員 <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.employee_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, employee_id: e.target.value }))}
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
-                >
-                  <option value="">選択してください</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id} className="text-gray-800">
-                      {emp.name}
-                    </option>
-                  ))}
-                </select>
+                {isEmployee ? (
+                  <input
+                    type="text"
+                    value={user?.name || ''}
+                    disabled
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-800 cursor-not-allowed"
+                  />
+                ) : (
+                  <select
+                    value={formData.employee_id}
+                    onChange={(e) => setFormData(prev => ({ ...prev, employee_id: e.target.value }))}
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
+                  >
+                    <option value="">選択してください</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id} className="text-gray-800">
+                        {emp.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -596,28 +616,63 @@ const LeavePage: React.FC = () => {
                 </p>
               </div>
 
-              {selectedLeave.status === '申請中' && (
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                {/* 従業員モード: 自分の申請のみ削除可能 */}
+                {isEmployee && selectedLeave.employee_id === currentEmployeeId && (
                   <button
-                    onClick={() => {
-                      approveLeave(selectedLeave.id);
-                      setSelectedLeave(null);
-                    }}
-                    className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
-                  >
-                    承認
-                  </button>
-                  <button
-                    onClick={() => {
-                      rejectLeave(selectedLeave.id, '管理者による却下');
-                      setSelectedLeave(null);
+                    onClick={async () => {
+                      if (confirm('この申請を削除してもよろしいですか？')) {
+                        await deleteLeaveRequest(selectedLeave.id);
+                        setSelectedLeave(null);
+                      }
                     }}
                     className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
                   >
-                    却下
+                    削除
                   </button>
-                </div>
-              )}
+                )}
+
+                {/* 管理者・開発者モード */}
+                {!isEmployee && (
+                  <>
+                    {/* 申請中の場合は承認・却下ボタン */}
+                    {selectedLeave.status === '申請中' && (
+                      <>
+                        <button
+                          onClick={() => {
+                            approveLeave(selectedLeave.id);
+                            setSelectedLeave(null);
+                          }}
+                          className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+                        >
+                          承認
+                        </button>
+                        <button
+                          onClick={() => {
+                            rejectLeave(selectedLeave.id, '管理者による却下');
+                            setSelectedLeave(null);
+                          }}
+                          className="flex-1 py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors"
+                        >
+                          却下
+                        </button>
+                      </>
+                    )}
+                    {/* 全てのステータスで削除ボタンを表示 */}
+                    <button
+                      onClick={async () => {
+                        if (confirm('この申請を削除してもよろしいですか？')) {
+                          await deleteLeaveRequest(selectedLeave.id);
+                          setSelectedLeave(null);
+                        }
+                      }}
+                      className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                    >
+                      削除
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
