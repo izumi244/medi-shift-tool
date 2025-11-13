@@ -190,14 +190,19 @@ const ShiftPage: React.FC = () => {
     setCurrentDate(newDate);
   };
 
+  // 時刻を HH:MM:SS から HH:MM に変換
+  const formatTime = (time: string): string => {
+    return time.substring(0, 5); // "08:30:00" -> "08:30"
+  };
+
   const getShiftTimeLabel = (shift: ShiftAssignment): string => {
     if (shift.isRest) return shift.restReason || '休み';
     if (shift.patternId) {
       const pattern = shiftPatterns.find(p => p.id === shift.patternId);
-      return pattern ? `${pattern.start_time}~${pattern.end_time}` : '不明';
+      return pattern ? `${formatTime(pattern.start_time)}~${formatTime(pattern.end_time)}` : '不明';
     }
     if (shift.customStartTime && shift.customEndTime) {
-      return `${shift.customStartTime}~${shift.customEndTime}`;
+      return `${formatTime(shift.customStartTime)}~${formatTime(shift.customEndTime)}`;
     }
     return '';
   };
@@ -309,7 +314,7 @@ const ShiftPage: React.FC = () => {
                   <select value={editValues.patternId} onChange={(e) => setEditValues(p => ({...p, patternId: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
                     <option value="">パターンを選択...</option>
                     {shiftPatterns.filter(p => employees.find(e => e.id === editingCell.employeeId)?.assignable_shift_pattern_ids.includes(p.id)).map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.start_time}-{p.end_time})</option>
+                      <option key={p.id} value={p.id}>{p.name} ({formatTime(p.start_time)}-{formatTime(p.end_time)})</option>
                     ))}
                   </select>
                 </div>

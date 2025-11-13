@@ -21,6 +21,11 @@ type ShiftPatternFormData = Omit<ShiftPattern, 'id'>;
 const ShiftPatternPage: React.FC = () => {
   const { shiftPatterns, addShiftPattern, updateShiftPattern, deleteShiftPattern: deleteShiftPatternFromContext } = useShiftData();
 
+  // 時刻を HH:MM:SS から HH:MM に変換
+  const formatTime = (time: string): string => {
+    return time.substring(0, 5); // "08:30:00" -> "08:30"
+  };
+
   const getInitialFormData = useCallback((): ShiftPatternFormData => ({
     name: '',
     start_time: '09:00',
@@ -92,7 +97,7 @@ const ShiftPatternPage: React.FC = () => {
                   <h3 className="text-xl font-bold text-gray-800 mb-2">{pattern.name}</h3>
                   <div className="flex items-center gap-2 text-gray-600 mb-1">
                     <Clock className="w-4 h-4" />
-                    <span>{pattern.start_time} ~ {pattern.end_time}</span>
+                    <span>{formatTime(pattern.start_time)} ~ {formatTime(pattern.end_time)}</span>
                   </div>
                   <div className="text-sm text-gray-500">
                     休憩: {pattern.break_minutes}分
