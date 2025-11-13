@@ -88,9 +88,7 @@ const LeavePage: React.FC = () => {
   // 希望休申請を承認
   const approveLeave = async (id: string) => {
     await updateLeaveRequest(id, {
-      status: '承認' as RequestStatus,
-      approved_by: 'admin',
-      approved_at: new Date().toISOString()
+      status: '承認' as RequestStatus
     });
   };
 

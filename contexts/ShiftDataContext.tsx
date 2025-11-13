@@ -51,6 +51,7 @@ interface ShiftDataContextType {
   getShiftById: (id: string) => Shift | undefined
   getShiftsByMonth: (year: number, month: number) => Shift[]
   bulkUpsertShifts: (shifts: Omit<Shift, 'created_at' | 'updated_at'>[]) => Promise<void>
+  generateShift: (targetMonth: string, specialRequests?: string) => Promise<{ shifts: any[]; summary: any }>
 
   // 希望休管理
   addLeaveRequest: (leave: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => Promise<LeaveRequest>
@@ -385,6 +386,35 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     await Promise.all(promises)
   }, [])
 
+  const generateShift = useCallback(async (targetMonth: string, specialRequests?: string) => {
+    const res = await fetch('/api/generate-shift', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target_month: targetMonth,
+        special_requests: specialRequests
+      }),
+    })
+    const result = await res.json()
+    if (result.success) {
+      // 生成されたシフトを保存
+      if (result.data.shifts && result.data.shifts.length > 0) {
+        await bulkUpsertShifts(result.data.shifts.map((shift: any) => ({
+          employee_id: shift.employee_id,
+          date: shift.date,
+          shift_pattern_id: shift.shift_pattern_id || undefined,
+          am_workplace: shift.am_workplace || undefined,
+          pm_workplace: shift.pm_workplace || undefined,
+          status: 'draft' as const
+        })))
+        // データを再取得
+        await refreshAllData()
+      }
+      return result.data
+    }
+    throw new Error(result.error?.message || 'Failed to generate shift')
+  }, [bulkUpsertShifts, refreshAllData])
+
   // ==================== 希望休管理 ====================
 
   const addLeaveRequest = useCallback(async (leaveData: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => {
@@ -402,17 +432,20 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateLeaveRequest = useCallback(async (id: string, updates: Partial<LeaveRequest>) => {
+    console.log('[updateLeaveRequest] Request:', { id, updates })
     const res = await fetch('/api/leave-requests', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
     })
     const result = await res.json()
+    console.log('[updateLeaveRequest] Response:', result)
     if (result.success) {
       setLeaveRequests((prev) =>
         prev.map((leave) => (leave.id === id ? result.data : leave))
       )
     } else {
+      console.error('[updateLeaveRequest] Error:', result.error)
       throw new Error(result.error?.message || 'Failed to update leave request')
     }
   }, [])
@@ -530,6 +563,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     getShiftById,
     getShiftsByMonth,
     bulkUpsertShifts,
+    generateShift,
     addLeaveRequest,
     updateLeaveRequest,
     deleteLeaveRequest,

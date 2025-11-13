@@ -24,7 +24,7 @@ interface ShiftData {
 
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
-  const { employees, shiftPatterns, shifts, addShift, updateShift } = useShiftData();
+  const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift } = useShiftData();
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -43,14 +43,15 @@ const ShiftPage: React.FC = () => {
     restReason: '休み'
   });
 
-  // shiftsデータをShiftData形式に変換
+  // shiftsデータをShiftData形式に変換（承認済み希望休を含む）
   const shiftData = React.useMemo(() => {
     const data: ShiftData = {};
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
+    // 既存のシフトデータを追加
     shifts.forEach(shift => {
       const shiftDate = new Date(shift.date);
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth();
 
       // 現在表示中の月のシフトのみ含める
       if (shiftDate.getFullYear() === year && shiftDate.getMonth() === month) {
@@ -72,8 +73,32 @@ const ShiftPage: React.FC = () => {
       }
     });
 
+    // 承認済み希望休を追加（既存シフトがない場合のみ）
+    leaveRequests.forEach(leave => {
+      if (leave.status === '承認') {
+        const leaveDate = new Date(leave.date);
+
+        // 現在表示中の月の承認済み希望休のみ含める
+        if (leaveDate.getFullYear() === year && leaveDate.getMonth() === month) {
+          const day = leaveDate.getDate();
+
+          if (!data[leave.employee_id]) {
+            data[leave.employee_id] = {};
+          }
+
+          // 既存のシフトがない場合のみ希望休を表示
+          if (!data[leave.employee_id][day]) {
+            data[leave.employee_id][day] = {
+              isRest: true,
+              restReason: leave.leave_type
+            };
+          }
+        }
+      }
+    });
+
     return data;
-  }, [shifts, currentDate]);
+  }, [shifts, leaveRequests, currentDate]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
