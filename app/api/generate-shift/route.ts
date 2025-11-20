@@ -303,8 +303,38 @@ export async function POST(request: NextRequest) {
       removed: shiftData.shifts.length - validatedShifts.length
     })
 
+    // Dify成功後、既存シフトを削除
+    console.log('Deleting existing shifts for:', body.target_month)
+    const { error: deleteError } = await supabase
+      .from('shifts')
+      .delete()
+      .gte('date', startDate)
+      .lte('date', lastDate)
+
+    if (deleteError) {
+      console.error('既存シフト削除エラー:', deleteError)
+      // 削除エラーでも続行（新規月の場合は削除対象がないため）
+    }
+
+    // 新規シフトをデータベースに挿入
+    console.log('Inserting new shifts:', validatedShifts.length)
+    const { error: insertError } = await supabase
+      .from('shifts')
+      .insert(validatedShifts)
+
+    if (insertError) {
+      console.error('シフト挿入エラー:', insertError)
+      return NextResponse.json({
+        success: false,
+        error: { message: 'シフトの保存に失敗しました', details: insertError.message }
+      }, { status: 500 })
+    }
+
+    console.log('Shifts successfully saved to database')
+
     return NextResponse.json({
       success: true,
+      message: 'シフトを作成しました！',
       data: {
         shifts: validatedShifts,
         summary: {

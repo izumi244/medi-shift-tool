@@ -4,7 +4,8 @@
 ================================================================================
 
 作成日: 2025-11-06
-バージョン: 1.0.0
+最終更新: 2025-11-14
+バージョン: 2.0.0
 ライセンス: UNLICENSED (メディ様専用)
 
 ================================================================================
@@ -21,10 +22,11 @@
 8. 状態管理
 9. API設計
 10. 認証システム
-11. UI/UXデザインシステム
-12. 開発・デプロイメント
-13. コーディング規約
-14. 今後の拡張予定
+11. AIシフト生成システム (Dify連携)
+12. UI/UXデザインシステム
+13. 開発・デプロイメント
+14. コーディング規約
+15. 今後の拡張予定
 
 ================================================================================
 1. プロジェクト概要
@@ -34,25 +36,35 @@
 Shift_M (Medical Shift Management System)
 
 【目的】
-医療機関（クリニック・健診センター）向けの看護師・臨床検査技師のシフト作成・管理を
+医療機関（クリニック・健診センター）向けの看護師・臨床検査技師・看護助手のシフト作成・管理を
 AIを活用して効率化するWebアプリケーション
 
 【主要機能】
-- 従業員管理（看護師・臨床検査技師の情報管理）
+- 従業員管理（看護師・臨床検査技師・看護助手の情報管理）
+  - 従業員アカウント自動作成（emp001形式）
+  - カスタム並び順設定（ドラッグ&ドロップ）
+  - ロールベースアクセス制御（admin/employee）
 - 配置場所管理（クリニック棟・健診棟の各配置先管理）
+  - 曜日別・時間帯別（AM/PM）管理
+  - カスタム並び順設定
 - シフトパターン管理（早番・遅番等の勤務時間帯設定）
+  - 休みフラグ対応
+  - カラーコーディング
 - 希望休管理（カレンダー形式での休暇申請・承認）
+  - 承認済み希望休のシフト表示統合
+  - 出勤可能日の設定
 - AI制約条件管理（自然言語での制約ルール設定）
 - シフト表示・編集（月次シフト表のビジュアル管理）
-- AIシフト自動生成（将来実装予定）
+- AIシフト自動生成（Dify Workflow連携）★実装済み
 
 【対象ユーザー】
-- 管理者: シフト作成・承認・全データ管理
-- スタッフ: 希望休申請・自身のシフト閲覧
+- 管理者 (admin123): シフト作成・承認・全データ管理
+- 従業員 (emp001~): 希望休申請・自身のシフト閲覧（将来実装）
 
 【運用環境】
 - デプロイ先: Vercel (本番環境)
 - データベース: Supabase (PostgreSQL)
+- AI連携: Dify Workflow API
 - 対応ブラウザ: Chrome, Edge, Safari (最新版)
 - レスポンシブ対応: デスクトップ・タブレット
 
@@ -78,6 +90,7 @@ AIを活用して効率化するWebアプリケーション
 │  │  ┌────────────────────────────────────────────┐  │  │
 │  │  │  API Routes (/app/api/*)                   │  │  │
 │  │  │  - REST API エンドポイント                  │  │  │
+│  │  │  - Dify Workflow 連携API                   │  │  │
 │  │  └────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
@@ -91,6 +104,16 @@ AIを活用して効率化するWebアプリケーション
 │  └──────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │  Row Level Security (RLS) Policies                │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          ↓↑ HTTPS
+┌─────────────────────────────────────────────────────────┐
+│              Dify Workflow API (AI連携)                 │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  LLM: Gemini 2.0 Flash / Claude 3.5 Sonnet       │  │
+│  │  Function: AIシフト自動生成                       │  │
+│  │  Input: 従業員、配置場所、制約条件、希望休        │  │
+│  │  Output: 最適化されたシフト（JSON）               │  │
 │  └──────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 
@@ -114,6 +137,11 @@ AIを活用して効率化するWebアプリケーション
    - 型安全性の確保
    - IDEサポートによる開発効率向上
    - コンパイル時エラー検出
+
+5. Dify Workflow AI連携
+   - ノーコードAIワークフロー
+   - LLM (Gemini/Claude) による最適化
+   - ストリーミングレスポンス対応
 
 ================================================================================
 3. 技術スタック
@@ -167,6 +195,14 @@ AIを活用して効率化するWebアプリケーション
 │   ^2.76.1               │                               │
 └────────────────────────────────────────────────────────┘
 
+┌────────────────────────────────────────────────────────┐
+│ AI連携                                                  │
+├────────────────────────────────────────────────────────┤
+│ Dify Workflow API       │ AIシフト自動生成              │
+│ LLM: Gemini 2.0 Flash   │ 無料（推奨）                  │
+│ LLM: Claude 3.5 Sonnet  │ 有料（高精度）                │
+└────────────────────────────────────────────────────────┘
+
 【開発ツール】
 ┌────────────────────────────────────────────────────────┐
 │ リンター・フォーマッター                                │
@@ -200,10 +236,19 @@ Shift_M/
 │
 ├── app/                              # Next.js 14 App Router
 │   ├── api/                          # API Routes
+│   │   ├── auth/
+│   │   │   ├── login/
+│   │   │   │   └── route.ts          # ログインAPI
+│   │   │   └── change-password/
+│   │   │       └── route.ts          # パスワード変更API
 │   │   ├── constraints/
 │   │   │   └── route.ts              # AI制約条件 CRUD API
 │   │   ├── employees/
-│   │   │   └── route.ts              # 従業員 CRUD API
+│   │   │   ├── route.ts              # 従業員 CRUD API
+│   │   │   └── reorder/
+│   │   │       └── route.ts          # 従業員並び順変更API
+│   │   ├── generate-shift/
+│   │   │   └── route.ts              # AIシフト生成API (Dify連携) ★
 │   │   ├── leave-requests/
 │   │   │   └── route.ts              # 希望休 CRUD API
 │   │   ├── shift-patterns/
@@ -213,6 +258,8 @@ Shift_M/
 │   │   └── workplaces/
 │   │       └── route.ts              # 配置場所 CRUD API
 │   │
+│   ├── change-password/
+│   │   └── page.tsx                  # パスワード変更ページ
 │   ├── login/
 │   │   └── page.tsx                  # ログインページ
 │   ├── layout.tsx                    # ルートレイアウト
@@ -245,6 +292,11 @@ Shift_M/
 │   ├── session.ts                    # セッション管理
 │   └── supabase.ts                   # Supabaseクライアント
 │
+├── scripts/                          # ユーティリティスクリプト
+│   ├── setup-admin.ts                # 管理者アカウント作成
+│   ├── setup-existing-employees.ts   # 既存従業員アカウント作成
+│   └── fix-order-index.ts            # 並び順修正スクリプト
+│
 ├── types/                            # TypeScript型定義
 │   ├── auth.ts                       # 認証関連型
 │   └── index.ts                      # メイン型定義
@@ -252,18 +304,23 @@ Shift_M/
 ├── supabase/                         # データベーススキーマ・マイグレーション
 │   ├── schema.sql                    # データベーススキーマ
 │   ├── seed.sql                      # 初期データ
+│   ├── migrations/                   # マイグレーションファイル
+│   │   └── 20250113_add_auth_fields.sql  # 認証フィールド追加
+│   ├── add_nursing_assistant_job_type.sql # 看護助手追加
+│   ├── add_employee_order_index.sql  # 並び順フィールド追加
 │   ├── migrate_day_of_week.sql       # 曜日型マイグレーション
 │   ├── migrate_employees_days.sql    # 従業員曜日マイグレーション
 │   ├── fix_null_day_of_week.sql      # NULL曜日修正
 │   ├── fix_workplaces_null_days.sql  # 配置場所曜日修正
 │   ├── fix_duplicate_days.sql        # 重複曜日修正
+│   ├── fix_duplicate_order_index.sql # 重複並び順修正
 │   └── check_duplicate_days.sql      # 重複チェックSQL
 │
 ├── public/                           # 静的ファイル
 │
 ├── node_modules/                     # 依存パッケージ（自動）
 │
-├── .env.local                        # 環境変数（Supabase接続情報）
+├── .env.local                        # 環境変数（Supabase・Dify接続情報）
 ├── .eslintrc.json                    # ESLint設定
 ├── .gitignore                        # Git除外設定
 ├── next.config.js                    # Next.js設定
@@ -275,7 +332,9 @@ Shift_M/
 ├── tsconfig.json                     # TypeScript設定
 ├── tsconfig.tsbuildinfo              # TypeScriptビルド情報（自動生成）
 ├── README.md                         # プロジェクト説明
-└── PROJECT_DOCUMENTATION.txt         # 本ドキュメント
+├── DIFY_SETUP.md                     # Dify連携セットアップガイド
+├── PROJECT_DOCUMENTATION.txt         # 本ドキュメント
+└── landing-page.html                 # ランディングページ（営業用）
 
 【ディレクトリ設計原則】
 1. 関心の分離
@@ -321,6 +380,7 @@ start_time            TIME             NOT NULL      開始時刻
 end_time              TIME             NOT NULL      終了時刻
 break_minutes         INTEGER          NOT NULL      休憩時間（分）
 color                 VARCHAR(7)       NOT NULL      表示色（HEX）
+is_day_off            BOOLEAN          DEFAULT FALSE 休みフラグ ★追加
 is_active             BOOLEAN          DEFAULT TRUE  有効フラグ
 created_at            TIMESTAMPTZ      DEFAULT NOW() 作成日時
 updated_at            TIMESTAMPTZ      DEFAULT NOW() 更新日時
@@ -329,19 +389,20 @@ updated_at            TIMESTAMPTZ      DEFAULT NOW() 更新日時
 - idx_shift_patterns_active ON (is_active)
 
 サンプルデータ:
-┌──────────────────────┬──────────┬──────────┬──────────────┬─────────┐
-│ name                 │ start    │ end      │ break_min    │ color   │
-├──────────────────────┼──────────┼──────────┼──────────────┼─────────┤
-│ 早番                 │ 08:00    │ 17:00    │ 60           │ #e0f2fe │
-│ 遅番                 │ 10:00    │ 19:00    │ 60           │ #dcfce7 │
-│ パート4h             │ 09:00    │ 13:00    │ 0            │ #fef9c3 │
-└──────────────────────┴──────────┴──────────┴──────────────┴─────────┘
+┌──────────────────────┬──────────┬──────────┬──────────────┬─────────┬──────────┐
+│ name                 │ start    │ end      │ break_min    │ color   │ is_off   │
+├──────────────────────┼──────────┼──────────┼──────────────┼─────────┼──────────┤
+│ D                    │ 08:00    │ 17:00    │ 60           │ #e0f2fe │ false    │
+│ 健診G                │ 08:00    │ 17:00    │ 60           │ #dcfce7 │ false    │
+│ パート4h             │ 09:00    │ 13:00    │ 0            │ #fef9c3 │ false    │
+│ 休み                 │ 00:00    │ 00:00    │ 0            │ #f3f4f6 │ true     │
+└──────────────────────┴──────────┴──────────┴──────────────┴─────────┴──────────┘
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【2. employees - 従業員テーブル】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目的: 看護師・臨床検査技師の情報を管理
+目的: 看護師・臨床検査技師・看護助手の情報を管理
 
 カラム名                        型               制約          説明
 ─────────────────────────────────────────────────────────────────
@@ -349,8 +410,8 @@ id                             UUID             PK            主キー
 name                           VARCHAR(100)     NOT NULL      氏名
 employment_type                ENUM             NOT NULL      雇用形態
                                                               ('常勤', 'パート')
-job_type                       ENUM             NOT NULL      職種
-                                                              ('看護師', '臨床検査技師')
+job_type                       ENUM             NOT NULL      職種 ★更新
+                                                              ('看護師', '臨床検査技師', '看護助手')
 assignable_workplaces_by_day   JSONB            NOT NULL      曜日別配置可能場所
                                                               Record<string, string[]>
 assignable_shift_pattern_ids   UUID[]           NOT NULL      割当可能シフトパターンID
@@ -361,7 +422,14 @@ available_days                 TEXT[]           NOT NULL      出勤可能曜日
 phone                          VARCHAR(20)                    電話番号
 email                          VARCHAR(255)                   メールアドレス
 notes                          TEXT                           備考
+order_index                    INTEGER          DEFAULT 0     表示順序 ★追加
 is_active                      BOOLEAN          DEFAULT TRUE  有効フラグ
+employee_number                VARCHAR(20)      UNIQUE        従業員番号 (emp001形式) ★追加
+password_hash                  TEXT                           パスワードハッシュ ★追加
+password_changed               BOOLEAN          DEFAULT FALSE パスワード変更済みフラグ ★追加
+session_token                  TEXT                           セッショントークン ★追加
+last_login                     TIMESTAMPTZ                    最終ログイン日時 ★追加
+is_system_account              BOOLEAN          DEFAULT FALSE システムアカウントフラグ ★追加
 created_at                     TIMESTAMPTZ      DEFAULT NOW() 作成日時
 updated_at                     TIMESTAMPTZ      DEFAULT NOW() 更新日時
 
@@ -370,10 +438,15 @@ updated_at                     TIMESTAMPTZ      DEFAULT NOW() 更新日時
 - idx_employees_employment_type ON (employment_type)
 - idx_employees_job_type ON (job_type)
 - idx_employees_name ON (name)
+- idx_employees_order ON (order_index) ★追加
+- idx_employees_number ON (employee_number) WHERE employee_number IS NOT NULL ★追加
+
+UNIQUE制約:
+- employee_number（NULL許可）
 
 ENUM型:
 - employment_type: '常勤', 'パート'
-- job_type: '看護師', '臨床検査技師'
+- job_type: '看護師', '臨床検査技師', '看護助手' ★更新
 
 JSONBフィールド例:
 assignable_workplaces_by_day:
@@ -387,6 +460,13 @@ day_constraints:
 [
   { "if": "水", "then": "木" }  // 水曜出勤後は木曜休み
 ]
+
+認証フィールド:
+- employee_number: emp001, emp002... 形式
+- password_hash: bcryptハッシュ化パスワード
+- password_changed: 初回ログイン後のパスワード変更フラグ
+- session_token: ログインセッション管理用
+- is_system_account: true = 管理者アカウント (admin123)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【3. workplaces - 配置場所テーブル】
@@ -405,7 +485,7 @@ day_of_week      ENUM             NOT NULL      曜日
                                                 ('月', '火', '水', '木', '金', '土', '日')
 required_count   INTEGER          NOT NULL      必要人数
 remarks          TEXT                           備考
-order_index      INTEGER          NOT NULL      表示順序
+order_index      INTEGER          NOT NULL      表示順序 ★追加
 is_active        BOOLEAN          DEFAULT TRUE  有効フラグ
 created_at       TIMESTAMPTZ      DEFAULT NOW() 作成日時
 updated_at       TIMESTAMPTZ      DEFAULT NOW() 更新日時
@@ -414,7 +494,7 @@ updated_at       TIMESTAMPTZ      DEFAULT NOW() 更新日時
 - idx_workplaces_active ON (is_active)
 - idx_workplaces_day ON (day_of_week)
 - idx_workplaces_facility ON (facility)
-- idx_workplaces_order ON (order_index)
+- idx_workplaces_order ON (order_index) ★追加
 
 ユニーク制約:
 - idx_workplaces_unique ON (name, facility, time_slot, day_of_week)
@@ -512,6 +592,11 @@ updated_at           TIMESTAMPTZ      DEFAULT NOW() 更新日時
    - 承認: status='承認', approved_by/approved_at設定
    - 却下: status='却下', rejection_reason設定
 
+★重要機能: 承認済み希望休のシフト統合
+- ShiftPage で承認済み希望休（status='承認' かつ leave_type≠'出勤可能'）をシフト表に自動表示
+- セル背景: 淡い青色
+- 表示内容: 休暇種別名（希望休、有休、忌引、病欠）
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【6. ai_constraint_guidelines - AI制約条件テーブル】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -533,10 +618,12 @@ updated_at           TIMESTAMPTZ      DEFAULT NOW() 更新日時
 ┌────────────────────────────────────────────────────────┐
 │ constraint_content                                     │
 ├────────────────────────────────────────────────────────┤
-│ 水曜日に出勤した従業員は、木曜日は休みにする           │
-│ 常勤職員は週5日以上出勤させる                          │
-│ パート職員は週3日まで                                  │
-│ 早番と遅番を連続で入れない                             │
+│ 廣橋は午前中は処置、Dのシフトを中心に                 │
+│ 中嶋は午前中は処置、Dのシフトを中心に                 │
+│ 町田は土曜日は13時まで                                 │
+│ 塚原は午前中健診、健診Gのシフトを中心に               │
+│ シフトはできるだけ連勤にしないようにしてください       │
+│ 看護師 村上は健診G、CF中、CF外が多め                  │
 └────────────────────────────────────────────────────────┘
 
 【データベーストリガー】
@@ -559,9 +646,10 @@ update_updated_at_column():
 ┌──────────────────┐       ┌──────────────────┐
 │ employees        │       │ workplaces       │
 │ ├ id (PK)        │       │ ├ id (PK)        │
-└──────────────────┘       └──────────────────┘
-    ↑        ↑                     (名前で参照)
-    │        │                            ↓
+│ ├ order_index    │       │ ├ order_index    │
+│ ├ employee_number│       └──────────────────┘
+└──────────────────┘               (名前で参照)
+    ↑        ↑                            ↓
     │FK      │FK                  ┌──────────────────┐
     │        │                    │ shifts           │
     │        │                    │ ├ id (PK)        │
@@ -607,7 +695,7 @@ types/
 【基本型】
 - PageType           - ページ種別
 - EmploymentType     - 雇用形態 ('常勤' | 'パート')
-- JobType            - 職種 ('看護師' | '臨床検査技師')
+- JobType            - 職種 ('看護師' | '臨床検査技師' | '看護助手') ★更新
 - FacilityType       - 施設種別 ('クリニック棟' | '健診棟')
 - TimeSlot           - 時間帯 ('AM' | 'PM')
 - ShiftType          - シフト種別 ('早番' | '遅番' | 'カスタム')
@@ -623,6 +711,8 @@ interface ShiftPattern {
   end_time: string
   break_minutes: number
   color: string
+  is_day_off?: boolean              // ★追加: 休みフラグ
+  is_active?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -631,7 +721,7 @@ interface Employee {
   id: string
   name: string
   employment_type: EmploymentType
-  job_type: JobType
+  job_type: JobType                 // ★更新: '看護助手'追加
   assignable_workplaces_by_day: Record<string, string[]>
   assignable_shift_pattern_ids: string[]
   day_constraints: Array<{ if: string; then: string }>
@@ -639,9 +729,23 @@ interface Employee {
   phone?: string
   email?: string
   notes?: string
+  order_index?: number              // ★追加: 表示順序
   is_active: boolean
+  employee_number?: string          // ★追加: emp001形式
+  password_hash?: string            // ★追加: パスワードハッシュ
+  password_changed?: boolean        // ★追加: パスワード変更済みフラグ
+  session_token?: string            // ★追加: セッショントークン
+  last_login?: string               // ★追加: 最終ログイン
+  is_system_account?: boolean       // ★追加: システムアカウントフラグ
   created_at: string
   updated_at: string
+}
+
+interface EmployeeAccountInfo {    // ★追加: 従業員アカウント情報
+  employee_id: string
+  employee_number: string
+  initial_password: string
+  created_at: string
 }
 
 interface Workplace {
@@ -652,7 +756,7 @@ interface Workplace {
   day_of_week: DayOfWeek
   required_count: number
   remarks?: string
-  order_index: number
+  order_index: number               // ★追加: 表示順序
   is_active: boolean
   created_at: string
   updated_at: string
@@ -718,7 +822,7 @@ type UserRole = 'admin' | 'employee' | 'developer'
 
 interface User {
   id: string
-  user_id: string        // tanaka123 形式
+  user_id: string        // admin123, emp001形式
   name: string
   role: UserRole
   created_at: string
@@ -761,12 +865,12 @@ interface SessionData {
 │ LoginForm.tsx        │ ログインフォーム               │
 │ MainLayout.tsx       │ サイドバー付きメインレイアウト │
 │ DataInputPage.tsx    │ データ入力・AIシフト作成       │
-│ EmployeePage.tsx     │ 従業員管理（CRUD）             │
-│ WorkplacePage.tsx    │ 配置場所管理（CRUD）           │
+│ EmployeePage.tsx     │ 従業員管理（CRUD・並び順）     │
+│ WorkplacePage.tsx    │ 配置場所管理（CRUD・並び順）   │
 │ ShiftPatternPage.tsx │ シフトパターン管理（CRUD）     │
 │ LeavePage.tsx        │ 希望休管理（カレンダー・CRUD） │
 │ ConstraintsPage.tsx  │ AI制約条件管理（CRUD）         │
-│ ShiftPage.tsx        │ シフト表示・編集               │
+│ ShiftPage.tsx        │ シフト表示・編集・希望休統合   │
 └──────────────────────┴────────────────────────────────┘
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -795,27 +899,30 @@ interface SessionData {
 - AI制約条件管理（ConstraintsPage）
 - シフト表示（ShiftPage）
 
-状態管理:
-- currentPage: ページ切り替え
-- onNavigate: ページ遷移ハンドラ
+ロール制限:
+- employee: 希望休管理、シフト表示のみアクセス可能
+- admin: 全ページアクセス可能
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【EmployeePage.tsx - 従業員管理】
+【EmployeePage.tsx - 従業員管理】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 機能:
-- 従業員一覧表示（テーブル形式）
+- 従業員一覧表示（カスタム順序対応）★
 - 従業員追加・編集・削除
-- 雇用形態・職種フィルタリング
+- 並び順変更（↑↓ボタン）★
+- 雇用形態・職種フィルタリング（看護助手対応）★
+- 従業員アカウント自動作成（emp001形式）★
 - モーダルでのフォーム入力
 
 主要機能:
 1. 従業員一覧
    - 名前、雇用形態、職種、出勤可能日、操作ボタン
    - アクティブ/非アクティブ切り替え
+   - カスタム並び順（order_index）で表示 ★
 
 2. 従業員追加/編集モーダル
-   - 基本情報: 名前、雇用形態、職種
+   - 基本情報: 名前、雇用形態、職種（看護助手追加）★
    - 出勤可能日: 曜日選択
    - 曜日別配置可能場所: 曜日ごとにチェックボックス
    - 割当可能シフトパターン: 複数選択
@@ -823,22 +930,27 @@ interface SessionData {
    - 連絡先: 電話、メール
    - 備考
 
+3. 従業員アカウント機能 ★
+   - 追加時に自動でemp001形式の番号を採番
+   - 初期パスワード: employee番号と同じ（例: emp001）
+   - アカウント情報をモーダルで表示
+
 使用フック:
 - useShiftData(): 従業員データ取得・操作
 - useModalManager(): モーダル開閉管理
 
 カラー定義:
 - employmentTypeColors (lib/colors.ts)
-- JOB_TYPE_ICONS (lib/constants.ts)
+- JOB_TYPE_ICONS (lib/constants.ts): 🩺看護師 🔬臨床検査技師 🏥看護助手 ★
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【WorkplacePage.tsx - 配置場所管理】
+【WorkplacePage.tsx - 配置場所管理】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 機能:
 - 曜日・施設・時間帯別の配置場所一覧
 - 配置場所追加・編集・削除
-- 表示順序変更（↑↓ボタン）
+- 表示順序変更（↑↓ボタン）★
 - タブ切り替え（クリニック棟/健診棟）
 
 レイアウト:
@@ -848,12 +960,12 @@ interface SessionData {
 │ ┌─ クリニック棟 ─┐ ┌─ 健診棟 ─┐             │
 │ │                  │ │            │             │
 │ │ AM配置場所       │ │ AM配置場所 │             │
-│ │ - D (1人)        │ │ - 健診G    │             │
-│ │ - 処 (3人)       │ │ - 健診     │             │
+│ │ - D (1人) ↑↓    │ │ - 健診G ↑↓│             │
+│ │ - 処 (3人) ↑↓   │ │ - 健診 ↑↓ │             │
 │ │                  │ │            │             │
 │ │ PM配置場所       │ │ PM配置場所 │             │
-│ │ - D (1人)        │ │ - 健診     │             │
-│ │ - 処 (4人)       │ │            │             │
+│ │ - D (1人) ↑↓    │ │ - 健診 ↑↓ │             │
+│ │ - 処 (4人) ↑↓   │ │            │             │
 │ └──────────────────┘ └────────────┘             │
 └────────────────────────────────────────────────────┘
 
@@ -863,7 +975,7 @@ interface SessionData {
    - AM/PMタブで時間帯切り替え
 
 2. 配置場所カード
-   - 名前、必要人数、備考、順序変更ボタン
+   - 名前、必要人数、備考、順序変更ボタン ★
    - 編集・削除ボタン
 
 3. 配置場所追加/編集モーダル
@@ -875,7 +987,34 @@ interface SessionData {
 - DAY_LABELS (lib/constants.ts)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【LeavePage.tsx - 希望休管理】
+【ShiftPatternPage.tsx - シフトパターン管理】★追加
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+機能:
+- シフトパターン一覧表示
+- パターン追加・編集・削除
+- 休みフラグ対応 ★
+- カラーピッカーでの色選択
+
+主要機能:
+1. パターン一覧
+   - パターン名、時間、休憩、色、休みフラグ
+   - 編集・削除ボタン
+
+2. パターン追加/編集モーダル
+   - パターン名
+   - 開始・終了時刻
+   - 休憩時間（分）
+   - 表示色（HEXカラーピッカー）
+   - 休みフラグチェックボックス ★
+
+使用例:
+- D: 08:00-17:00 (60分休憩) - 青色
+- 健診G: 08:00-17:00 (60分休憩) - 緑色
+- 休み: 00:00-00:00 (0分休憩) - 灰色、is_day_off=true ★
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【LeavePage.tsx - 希望休管理】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 機能:
@@ -884,6 +1023,7 @@ interface SessionData {
 - ステータス別フィルタリング（申請中/承認/却下）
 - 従業員別フィルタリング
 - リスト表示との切り替え
+- 承認済み希望休のシフト統合 ★
 
 レイアウト（カレンダー表示）:
 ┌────────────────────────────────────────────────────┐
@@ -892,12 +1032,12 @@ interface SessionData {
 │    │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │    │    │
 ├────┼────┼────┼────┼────┼────┼────┼────┼───┤
 │ 7  │ 8  │ 9  │ 10 │ 11 │ 12 │ 13 │    │    │
-│    │    │    │🔵  │🟢  │    │    │    │    │
+│    │    │    │🟡  │🟢  │    │    │    │    │
 │    │    │    │山田│佐藤│    │    │    │    │
 └────┴────┴────┴────┴────┴────┴────┴────┴───┘
 
 記号:
-- 🔵 申請中（黄色背景）
+- 🟡 申請中（黄色背景）
 - 🟢 承認（緑背景）
 - 🔴 却下（赤背景）
 
@@ -910,12 +1050,16 @@ interface SessionData {
 2. 希望休申請モーダル
    - 従業員選択
    - 日付選択
-   - 休暇種別（希望休/有休/忌引/病欠/その他）
+   - 休暇種別（希望休/有休/忌引/病欠/その他/出勤可能）★
    - 理由入力
 
 3. 承認/却下機能
    - 管理者のみ
    - 却下理由入力
+
+4. シフト統合機能 ★
+   - ShiftPageで承認済み希望休を自動表示
+   - 休暇種別ごとに色分け
 
 カラー定義:
 - statusColors (lib/colors.ts)
@@ -925,7 +1069,7 @@ interface SessionData {
 - currentMonth: 現在月を自動設定
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【ShiftPage.tsx - シフト表示・編集】
+【ShiftPage.tsx - シフト表示・編集】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 機能:
@@ -933,6 +1077,7 @@ interface SessionData {
 - セル単位での編集（編集モード時）
 - シフトパターン/カスタム時間/休み設定
 - 曜日制約チェック（編集時）
+- 承認済み希望休の統合表示 ★
 
 レイアウト:
 ┌────────────────────────────────────────────────────┐
@@ -941,9 +1086,9 @@ interface SessionData {
 │ 従業員   │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │...│
 │          │(月)│(火)│(水)│(木)│(金)│(土)│(日)│   │
 ├──────────┼───┼───┼───┼───┼───┼───┼───┼───┤
-│ 佐藤花子 │D  │D  │   │D  │D  │D  │休 │   │
-│          │処 │処 │   │処 │処 │処 │み │   │
-│          │8-17│8-17│ │8-17│8-17│8-17│  │   │
+│ 佐藤花子 │D  │D  │休 │D  │D  │D  │休 │   │
+│          │処 │処 │有 │処 │処 │処 │み │   │
+│          │8-17│8-17│休│8-17│8-17│8-17│  │   │
 ├──────────┼───┼───┼───┼───┼───┼───┼───┼───┤
 │ 鈴木一郎 │処 │処 │健診│処 │処 │   │   │   │
 │          │   │   │G  │   │   │   │   │   │
@@ -953,12 +1098,14 @@ interface SessionData {
 セル情報:
 - 上段: AM/PM配置場所
 - 下段: 勤務時間（シフトパターンまたはカスタム）
+- ★承認済み希望休: 淡い青背景で休暇種別名を表示
 
 主要機能:
 1. シフト表表示
    - 月次カレンダー形式
    - 従業員×日付のマトリクス
    - 日曜日・水曜日の背景色変更
+   - 承認済み希望休の自動表示 ★
 
 2. セル編集モーダル
    - 勤務タイプ選択（パターン/カスタム/休み）
@@ -971,16 +1118,21 @@ interface SessionData {
    - 編集時に従業員の曜日制約を検証
    - 違反時はアラート表示
 
+4. 希望休統合 ★
+   - 承認済み希望休（status='承認' かつ leave_type≠'出勤可能'）を自動表示
+   - 休暇種別による色分け（希望休=青、有休=緑、忌引=灰、病欠=赤）
+   - クリックで詳細表示
+
 動的日付設定:
 - currentDate: 現在月の1日を自動設定
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【DataInputPage.tsx - データ入力・AIシフト作成】
+【DataInputPage.tsx - データ入力・AIシフト作成】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 機能:
 - 各管理機能へのナビゲーション
-- AIシフト作成（対象月・特別要望入力）
+- AIシフト作成（対象月・特別要望入力）★
 - 統計カード表示（従業員数、希望休件数等）
 
 レイアウト:
@@ -988,7 +1140,7 @@ interface SessionData {
 │ AIシフト作成                                       │
 │ ┌────────────────────────────────────────────────┐│
 │ │ 対象月: 2025-11    特別要望: [入力欄]           ││
-│ │ [AIシフト作成開始]                              ││
+│ │ [AIシフト作成開始]  ← Dify API連携 ★          ││
 │ └────────────────────────────────────────────────┘│
 ├────────────────────────────────────────────────────┤
 │ 管理機能カード                                     │
@@ -1002,10 +1154,17 @@ interface SessionData {
 - targetMonth: 現在月（YYYY-MM形式）を自動設定
 
 統計情報:
-- 登録従業員数
+- 登録従業員数（有効のみ）
 - 今月の希望休件数
-- 配置場所数
-- AI制約ルール数
+- 配置場所数（有効のみ）
+- AI制約ルール数（有効のみ）
+
+AIシフト作成機能: ★
+- Dify Workflow API連携
+- 従業員、配置場所、シフトパターン、希望休、制約条件を送信
+- LLM (Gemini/Claude) で最適シフトを生成
+- 生成されたシフトをSupabaseに保存
+- 完了後、ShiftPageに自動遷移
 
 ================================================================================
 8. 状態管理
@@ -1014,7 +1173,7 @@ interface SessionData {
 Context APIによるグローバル状態管理
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【ShiftDataContext - シフトデータ管理】
+【ShiftDataContext - シフトデータ管理】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 目的: 全シフトデータの一元管理とCRUD操作提供
@@ -1030,10 +1189,11 @@ Context APIによるグローバル状態管理
 
 提供メソッド:
 【従業員】
-- addEmployee(employee): Promise<Employee>
+- addEmployee(employee): Promise<Employee | EmployeeAccountInfo> ★更新
 - updateEmployee(id, updates): Promise<void>
 - deleteEmployee(id): Promise<void>
 - getEmployeeById(id): Employee | undefined
+- reorderEmployees(employeeId, direction): Promise<void> ★追加
 
 【配置場所】
 - addWorkplace(workplace): Promise<Workplace>
@@ -1054,6 +1214,7 @@ Context APIによるグローバル状態管理
 - getShiftById(id): Shift | undefined
 - getShiftsByMonth(year, month): Shift[]
 - bulkUpsertShifts(shifts): Promise<void>
+- generateShift(targetMonth, specialRequests?): Promise<GenerateShiftResult> ★追加
 
 【希望休】
 - addLeaveRequest(leave): Promise<LeaveRequest>
@@ -1077,8 +1238,15 @@ Context APIによるグローバル状態管理
 3. 成功後にローカル状態を更新
 4. エラー時はアラート表示
 
+★AIシフト生成フロー:
+1. generateShift(targetMonth, specialRequests) 呼び出し
+2. /api/generate-shift へPOSTリクエスト
+3. Dify Workflow APIでLLMによるシフト生成
+4. 生成されたシフトをbulkUpsertShifts()で保存
+5. refreshAllData()でデータ再取得
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【AuthContext - 認証管理】
+【AuthContext - 認証管理】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 目的: ユーザー認証状態管理とログイン/ログアウト処理
@@ -1093,8 +1261,8 @@ Context APIによるグローバル状態管理
 - logout(): Promise<void>
 
 認証フロー:
-1. ログインフォーム入力
-2. authenticate() でユーザー検証
+1. ログインフォーム入力（user_id, password）
+2. /api/auth/login でユーザー検証 ★
 3. セッション作成・保存
 4. AuthContext状態更新
 5. メインページへリダイレクト
@@ -1104,6 +1272,10 @@ Context APIによるグローバル状態管理
 - sessionStorage保存（remember_me=false時）
 - 有効期限: 7日間（remember_me）/ 1日（通常）
 
+対応アカウント: ★更新
+- admin123: 管理者アカウント（is_system_account=true）
+- emp001~: 従業員アカウント（employee_number）
+
 ================================================================================
 9. API設計
 ================================================================================
@@ -1111,41 +1283,48 @@ Context APIによるグローバル状態管理
 全APIは app/api/ 配下にRoute Handlersとして実装
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【API エンドポイント一覧】
+【API エンドポイント一覧】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┌────────────────────────────────────────────────────────┐
-│ エンドポイント           │ メソッド │ 説明           │
+│ エンドポイント              │ メソッド │ 説明           │
 ├────────────────────────────────────────────────────────┤
-│ /api/employees           │ GET      │ 従業員一覧取得 │
-│                          │ POST     │ 従業員作成     │
-│                          │ PUT      │ 従業員更新     │
-│                          │ DELETE   │ 従業員削除     │
+│ /api/auth/login             │ POST     │ ログイン認証   │
+│ /api/auth/change-password   │ POST     │ パスワード変更 │
 ├────────────────────────────────────────────────────────┤
-│ /api/workplaces          │ GET      │ 配置場所一覧   │
-│                          │ POST     │ 配置場所作成   │
-│                          │ PUT      │ 配置場所更新   │
-│                          │ DELETE   │ 配置場所削除   │
+│ /api/employees              │ GET      │ 従業員一覧取得 │
+│                             │ POST     │ 従業員作成     │
+│                             │ PUT      │ 従業員更新     │
+│                             │ DELETE   │ 従業員削除     │
+│ /api/employees/reorder      │ POST     │ 並び順変更 ★   │
 ├────────────────────────────────────────────────────────┤
-│ /api/shift-patterns      │ GET      │ シフトパターン │
-│                          │ POST     │ 一覧取得/作成/ │
-│                          │ PUT      │ 更新/削除      │
-│                          │ DELETE   │                │
+│ /api/workplaces             │ GET      │ 配置場所一覧   │
+│                             │ POST     │ 配置場所作成   │
+│                             │ PUT      │ 配置場所更新   │
+│                             │ DELETE   │ 配置場所削除   │
 ├────────────────────────────────────────────────────────┤
-│ /api/shifts              │ GET      │ シフト一覧取得 │
-│                          │ POST     │ シフト作成     │
-│                          │ PUT      │ シフト更新     │
-│                          │ DELETE   │ シフト削除     │
+│ /api/shift-patterns         │ GET      │ シフトパターン │
+│                             │ POST     │ 一覧取得/作成/ │
+│                             │ PUT      │ 更新/削除      │
+│                             │ DELETE   │                │
 ├────────────────────────────────────────────────────────┤
-│ /api/leave-requests      │ GET      │ 希望休一覧取得 │
-│                          │ POST     │ 希望休作成     │
-│                          │ PUT      │ 希望休更新     │
-│                          │ DELETE   │ 希望休削除     │
+│ /api/shifts                 │ GET      │ シフト一覧取得 │
+│                             │ POST     │ シフト作成     │
+│                             │ PUT      │ シフト更新     │
+│                             │ DELETE   │ シフト削除     │
 ├────────────────────────────────────────────────────────┤
-│ /api/constraints         │ GET      │ 制約一覧取得   │
-│                          │ POST     │ 制約作成       │
-│                          │ PUT      │ 制約更新       │
-│                          │ DELETE   │ 制約削除       │
+│ /api/generate-shift         │ POST     │ AIシフト生成 ★ │
+│                             │          │ (Dify連携)     │
+├────────────────────────────────────────────────────────┤
+│ /api/leave-requests         │ GET      │ 希望休一覧取得 │
+│                             │ POST     │ 希望休作成     │
+│                             │ PUT      │ 希望休更新     │
+│                             │ DELETE   │ 希望休削除     │
+├────────────────────────────────────────────────────────┤
+│ /api/constraints            │ GET      │ 制約一覧取得   │
+│                             │ POST     │ 制約作成       │
+│                             │ PUT      │ 制約更新       │
+│                             │ DELETE   │ 制約削除       │
 └────────────────────────────────────────────────────────┘
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1173,12 +1352,14 @@ Context APIによるグローバル状態管理
       "name": "佐藤花子",
       "employment_type": "常勤",
       "job_type": "看護師",
+      "order_index": 0,
+      "employee_number": "emp001",
       ...
     }
   ]
 }
 
-【POST /api/employees】
+【POST /api/employees】★更新
 リクエスト:
 {
   "name": "佐藤花子",
@@ -1190,85 +1371,70 @@ Context APIによるグローバル状態管理
   "available_days": ["月", "火", "水", "木", "金"]
 }
 
+レスポンス（アカウント情報付き）:
+{
+  "success": true,
+  "data": {
+    "employee_id": "new-uuid",
+    "employee_number": "emp001",
+    "initial_password": "emp001",
+    "created_at": "2025-11-14T..."
+  }
+}
+
+【POST /api/employees/reorder】★追加
+リクエスト:
+{
+  "employee_id": "uuid",
+  "direction": "up" | "down"
+}
+
+【POST /api/generate-shift】★追加
+リクエスト:
+{
+  "target_month": "2025-11",
+  "special_requests": "〇/〇、〇/〇は休み" (オプション)
+}
+
 レスポンス:
 {
   "success": true,
   "data": {
-    "id": "new-uuid",
-    "name": "佐藤花子",
-    ...
+    "shifts": [
+      {
+        "date": "2025-11-01",
+        "employee_id": "uuid",
+        "shift_pattern_id": "uuid",
+        "am_workplace": "D",
+        "pm_workplace": "処"
+      },
+      ...
+    ]
   }
 }
 
-【PUT /api/employees】
-リクエスト:
-{
-  "id": "uuid",
-  "name": "佐藤花子（更新）",
-  "phone": "090-1234-5678"
-}
+処理フロー:
+1. 従業員、配置場所、シフトパターン、希望休、制約条件をSupabaseから取得
+2. カレンダー生成（対象月の全日付）
+3. Dify Workflow APIにデータを送信
+4. LLM (Gemini/Claude) による最適化シフト生成
+5. 生成されたJSONシフトをパース
+6. Supabaseにシフトを一括保存
 
-【DELETE /api/employees】
-リクエスト:
-{
-  "id": "uuid"
-}
+エラーハンドリング:
+- Dify APIキー未設定: 400エラー
+- Dify API呼び出しエラー: 500エラー
+- JSONパースエラー: 500エラー
+- データベースエラー: 500エラー
 
 ※他のAPIエンドポイントも同様の形式
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【API実装パターン】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-例: app/api/employees/route.ts
-
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-
-export async function GET() {
-  try {
-    const { data, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true, data })
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: { code: 'FETCH_ERROR', message: error.message }
-    }, { status: 500 })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { data, error } = await supabase
-      .from('employees')
-      .insert([body])
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return NextResponse.json({ success: true, data })
-  } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: { code: 'CREATE_ERROR', message: error.message }
-    }, { status: 500 })
-  }
-}
 
 ================================================================================
 10. 認証システム
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【認証フロー】
+【認証フロー】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. ログインページアクセス (/login)
@@ -1277,9 +1443,9 @@ export async function POST(request: NextRequest) {
    ↓
 3. AuthContext.login() 呼び出し
    ↓
-4. lib/auth.ts の authenticate() でユーザー検証
-   - モックユーザーデータと照合
-   - 将来: Supabase Authに移行予定
+4. /api/auth/login でユーザー検証 ★
+   - employeesテーブルからemployee_number/is_system_accountで検索
+   - bcryptでパスワード照合
    ↓
 5. セッション作成・保存 (lib/session.ts)
    - remember_me=true: localStorage (7日間)
@@ -1287,38 +1453,47 @@ export async function POST(request: NextRequest) {
    ↓
 6. AuthContext状態更新
    ↓
-7. メインページへリダイレクト (/)
+7. password_changed=false の場合、パスワード変更ページへリダイレクト ★
+   password_changed=true の場合、メインページへリダイレクト
    ↓
 8. AuthGuard でセッションチェック
    - 有効: コンテンツ表示
    - 無効: /login へリダイレクト
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【モックユーザー】
+【アカウント種別】★追加
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-lib/auth.ts:
+1. システムアカウント（管理者）
+   - user_id: admin123
+   - is_system_account: true
+   - role: admin
+   - 全機能アクセス可能
 
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    user_id: 'admin',
-    name: '管理者',
-    role: 'admin',
-    created_at: '2025-01-01T00:00:00Z'
-  },
-  {
-    id: '2',
-    user_id: 'tanaka123',
-    name: '田中太郎',
-    role: 'employee',
-    created_at: '2025-01-01T00:00:00Z'
-  }
-]
+2. 従業員アカウント
+   - user_id: emp001, emp002, ...
+   - employee_number: emp001形式
+   - role: employee
+   - 希望休管理、シフト表示のみアクセス可能（将来実装）
 
-認証ロジック:
-- パスワードチェック（現在は全て 'password123' で認証通過）
-- 将来: Supabase Auth または独自認証テーブルに移行
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【パスワード管理】★追加
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+初期パスワード:
+- 管理者: admin123
+- 従業員: employee_numberと同じ（例: emp001）
+
+パスワード変更:
+1. 初回ログイン時、password_changed=false の場合、強制的にパスワード変更ページへ
+2. /change-password ページで新しいパスワード入力
+3. /api/auth/change-password でパスワード更新（bcryptハッシュ化）
+4. password_changed=true に更新
+5. メインページへリダイレクト
+
+セキュリティ:
+- パスワードはbcryptでハッシュ化して保存
+- ハッシュ強度: saltRounds=10
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【セッション管理】
@@ -1346,7 +1521,173 @@ lib/session.ts:
 - AuthGuard で自動チェック
 
 ================================================================================
-11. UI/UXデザインシステム
+11. AIシフト生成システム (Dify連携) ★追加
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【システム概要】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Shift_MはDify Workflow APIを使用してAIシフト自動生成を実現
+
+【使用AI】
+- Gemini 2.0 Flash Experimental (無料・推奨)
+  - 出力トークン制限: 8192トークン
+  - コンパクトなJSON出力が必要
+
+- Claude 3.5 Sonnet (有料・高精度)
+  - 出力トークン制限: 200Kトークン
+  - 大規模シフト生成に最適
+
+【処理フロー】
+1. ユーザーがDataInputPageで「AIシフト作成開始」をクリック
+2. 対象月・特別要望を入力
+3. /api/generate-shift へPOSTリクエスト
+4. サーバーがSupabaseから全データ取得
+   - 従業員（order_index順）
+   - 配置場所
+   - シフトパターン
+   - 希望休（承認済みのみ）
+   - AI制約条件（有効のみ）
+5. カレンダー生成（対象月の全日付）
+6. Dify Workflow APIにデータを送信（JSON）
+7. Difyがプロンプトを構築してLLMに送信
+8. LLMが制約条件を考慮して最適シフトを生成（JSON）
+9. Difyがストリーミングレスポンスで結果を返す
+10. サーバーがJSONをパースしてSupabaseに保存
+11. クライアントが成功メッセージを表示
+12. ShiftPageに自動遷移
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【Dify設定】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+環境変数 (.env.local):
+DIFY_API_KEY=app-xxxxxxxxxxxxxx
+DIFY_API_URL=https://api.dify.ai/v1/workflows/run
+
+Dify Workflow入力変数:
+- target_month: string (例: "2025-11")
+- calendar: string (JSON: 日付リスト)
+- employees: string (JSON: 従業員情報)
+- workplaces: string (JSON: 配置場所情報)
+- shift_patterns: string (JSON: シフトパターン情報)
+- leave_requests: string (JSON: 承認済み希望休)
+- constraints: string (テキスト: AI制約条件)
+
+Dify Workflow出力:
+- JSON形式のシフトデータ
+```json
+{
+  "shifts": [
+    {
+      "date": "2025-11-01",
+      "employee_id": "uuid",
+      "shift_pattern_id": "uuid",
+      "am_workplace": "D",
+      "pm_workplace": "処"
+    },
+    ...
+  ]
+}
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【プロンプト設計】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Dify LLMノードに設定するプロンプト:
+
+あなたは医療機関のシフト作成AIアシスタントです。
+以下の情報を元に、{{target_month}}の最適なシフトを作成してください。
+
+【営業日カレンダー】
+{{calendar}}
+
+【従業員情報】
+{{employees}}
+
+【配置場所情報】
+{{workplaces}}
+
+【シフトパターン情報】
+{{shift_patterns}}
+
+【希望休情報】
+{{leave_requests}}
+
+【制約条件】
+{{constraints}}
+
+## ⚠️ 重要: 上記の【制約条件】に記載された内容は**最優先事項**として必ず守ってください。
+
+## 出力形式
+以下のJSON形式で**必ず**出力してください。JSONコードブロック内に出力し、他の説明文は含めないでください：
+
+```json
+{
+  "shifts": [
+    {
+      "date": "2025-11-01",
+      "employee_id": "実際のemployee UUID",
+      "shift_pattern_id": "実際のshift_pattern UUID",
+      "am_workplace": "配置場所名（午前）",
+      "pm_workplace": "配置場所名（午後）"
+    }
+  ]
+}
+```
+
+## 制約事項（必ず守ること）
+
+### 🔴 最優先事項
+1. **【制約条件】セクションの内容を最優先で守る**
+   - 例: 「廣橋は午前中は処置、Dのシフトを中心に」→ 廣橋には必ず処置・Dシフトを優先的に割り当てる
+
+### 🟡 技術的制約（厳守）
+2. **勤務可能曜日**: 各従業員の `available_days` を必ず守る
+3. **配置可能場所**: 各従業員の `assignable_workplaces_by_day` を必ず守る
+4. **対応可能シフトパターン**: 各従業員の `assignable_shift_pattern_ids` に含まれるパターンのみ
+5. **曜日制約**: 各従業員の `day_constraints` を守る
+6. **職種の考慮**: 従業員の `job_type` を考慮（看護師、臨床検査技師、看護助手）
+
+### 🟢 希望休の扱い（厳守）
+7. **希望休・有休・忌引・病欠**: 絶対にシフトを割り当てない
+8. **出勤可能日**: 優先的にシフトを割り当てる
+
+### 🔵 運用上の配慮
+9. **必要人数**: 各配置場所の `required_count` を可能な限り満たす
+10. **公平性**: 従業員間の勤務日数や負担が公平になるよう配慮
+11. **連勤の回避**: 【制約条件】で指示がある場合、連続勤務を避ける
+
+（詳細はDIFY_SETUP.mdを参照）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【トラブルシューティング】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【問題1】出力が途中で切れる（Gemini使用時）
+原因: Geminiの出力トークン制限（8192トークン）
+解決策:
+- コンパクトなJSON形式のプロンプトを使用
+- Claude 3.5 Sonnetに変更（出力200Kトークン）
+
+【問題2】制約条件が守られない
+原因: プロンプトで制約条件の優先度が低い
+解決策:
+- プロンプトの最上部に「⚠️ 重要: 【制約条件】を最優先」を追加
+- 具体例を6つ記載
+
+【問題3】JSONパースエラー
+原因: LLMが説明文を含めて出力
+解決策:
+- プロンプトで「他の説明文は含めないでください」と明記
+- Difyのコードノードでパース処理を追加
+
+詳細はDIFY_SETUP.mdを参照
+
+================================================================================
+12. UI/UXデザインシステム
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1415,10 +1756,12 @@ Lucide React アイコンライブラリ使用
 - Plus: 追加
 - Edit3: 編集
 - Trash2: 削除
+- ArrowUp/ArrowDown: 並び順変更 ★
 
 職種アイコン（絵文字）:
 - 看護師: 🩺
 - 臨床検査技師: 🔬
+- 看護助手: 🏥 ★追加
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【Tailwind CSS設定】
@@ -1479,12 +1822,12 @@ tailwind.config.js:
 - サイドバー: 固定幅（デスクトップ）/ ハンバーガーメニュー（モバイル）
 
 ================================================================================
-12. 開発・デプロイメント
+13. 開発・デプロイメント
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【開発環境セットアップ】
-���━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. リポジトリクローン
    git clone https://github.com/izumi244/medi-shift-tool.git
@@ -1493,11 +1836,16 @@ tailwind.config.js:
 2. 依存パッケージインストール
    npm install
 
-3. 環境変数設定
+3. 環境変数設定 ★更新
    .env.local ファイル作成:
+   # Supabase設定
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+   # Dify AI設定 ★追加
+   DIFY_API_KEY=app-xxxxxxxxxxxxxx
+   DIFY_API_URL=https://api.dify.ai/v1/workflows/run
 
 4. 開発サーバー起動
    npm run dev
@@ -1513,7 +1861,7 @@ tailwind.config.js:
    npm run build
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【デプロイメント（Vercel）】
+【デプロイメント（Vercel）】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. GitHub連携
@@ -1522,7 +1870,7 @@ tailwind.config.js:
 
 2. Vercel設定
    - プロジェクト作成
-   - 環境変数設定（Supabase接続情報）
+   - 環境変数設定（Supabase・Dify接続情報）★
    - 自動デプロイ設定（main ブランチへのプッシュ時）
 
 3. デプロイフロー
@@ -1532,13 +1880,15 @@ tailwind.config.js:
    → Vercel自動デプロイ開始
    → デプロイ完了後、本番URL確認
 
-4. 環境変数（Vercel）
+4. 環境変数（Vercel）★更新
    - NEXT_PUBLIC_SUPABASE_URL
    - NEXT_PUBLIC_SUPABASE_ANON_KEY
    - SUPABASE_SERVICE_ROLE_KEY
+   - DIFY_API_KEY ★追加
+   - DIFY_API_URL ★追加
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【データベースセットアップ（Supabase）】
+【データベースセットアップ（Supabase）】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. Supabaseプロジェクト作成
@@ -1546,36 +1896,77 @@ tailwind.config.js:
 2. SQLエディタでスキーマ実行
    supabase/schema.sql を実行
 
-3. 初期データ投入
+3. マイグレーション実行 ★追加
+   - supabase/add_nursing_assistant_job_type.sql (看護助手追加)
+   - supabase/migrations/20250113_add_auth_fields.sql (認証フィールド追加)
+   - supabase/add_employee_order_index.sql (並び順フィールド追加)
+
+4. 初期データ投入
    supabase/seed.sql を実行
 
-4. RLSポリシー確認
+5. 管理者アカウント作成 ★追加
+   npm run setup:admin
+
+6. 既存従業員アカウント作成（オプション）★追加
+   npm run setup:existing-employees
+
+7. RLSポリシー確認
    - 全テーブルで有効化されているか確認
    - 本番環境では適切な権限設定に変更
 
-5. 接続情報取得
+8. 接続情報取得
    - Project URL
    - Anon key
    - Service role key
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【npm スクリプト】
+【Difyセットアップ】★追加
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+詳細はDIFY_SETUP.mdを参照
+
+1. Difyアカウント作成
+   https://dify.ai
+
+2. Workflowを作成
+   - 名前: Shift_M シフト自動生成
+   - 入力変数設定（target_month, calendar, employees等）
+   - LLMノード追加（Gemini/Claude選択）
+   - プロンプト設定
+   - 出力変数設定
+
+3. APIキー取得
+   - Workflow → API → API Key
+
+4. .env.localに追加
+   DIFY_API_KEY=app-xxxxxxxxxxxxxx
+   DIFY_API_URL=https://api.dify.ai/v1/workflows/run
+
+5. 動作確認
+   - npm run dev
+   - DataInputPageで「AIシフト作成開始」をクリック
+   - シフトが生成されることを確認
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+【npm スクリプト】★更新
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 package.json:
 
 {
   "scripts": {
-    "dev": "next dev",           // 開発サーバー起動
-    "build": "next build",       // プロダクションビルド
-    "start": "next start",       // 本番サーバー起動
-    "lint": "next lint",         // ESLint実行
-    "type-check": "tsc --noEmit" // TypeScript型チェック
+    "dev": "next dev",                   // 開発サーバー起動
+    "build": "next build",               // プロダクションビルド
+    "start": "next start",               // 本番サーバー起動
+    "lint": "next lint",                 // ESLint実行
+    "type-check": "tsc --noEmit",        // TypeScript型チェック
+    "setup:admin": "npx tsx scripts/setup-admin.ts",                     // ★追加
+    "setup:existing-employees": "npx tsx scripts/setup-existing-employees.ts"  // ★追加
   }
 }
 
 ================================================================================
-13. コーディング規約
+14. コーディング規約
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1660,6 +2051,7 @@ package.json:
    Co-Authored-By: Claude <noreply@anthropic.com>
 
 2. 種別
+   - Feature: 新機能追加
    - Refactor: リファクタリング
    - Update: 機能追加・更新
    - Fix: バグ修正
@@ -1671,15 +2063,15 @@ package.json:
    - 機能開発: feature/xxx ブランチ
 
 ================================================================================
-14. 今後の拡張予定
+15. 今後の拡張予定
 ================================================================================
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【短期（1-3ヶ月）】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. AIシフト自動生成機能実装
-   - OpenAI API連携
+1. ✅ AIシフト自動生成機能実装（完了）
+   - Dify Workflow連携
    - 制約条件の自然言語解釈
    - シフト最適化アルゴリズム
 
@@ -1687,12 +2079,17 @@ package.json:
    - シフト表PDF生成
    - 印刷レイアウト最適化
 
-3. 通知機能
+3. 従業員ポータル機能
+   - ログイン後のロール制限実装
+   - 従業員の希望休申請機能
+   - 自身のシフト閲覧機能
+
+4. 通知機能
    - 希望休申請通知
    - シフト確定通知
-   - メール/プッシュ通知
+   - メール通知
 
-4. モバイルアプリ対応
+5. モバイルアプリ対応
    - PWA化
    - ホーム画面追加機能
 
@@ -1718,6 +2115,11 @@ package.json:
    - スタッフ間コミュニケーション
    - シフト相談・交換機能
 
+5. AIシフト生成精度向上
+   - 過去シフトからの学習機能
+   - 制約条件の自動提案
+   - A/Bテストによる最適化
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【長期（6ヶ月以上）】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1737,13 +2139,19 @@ package.json:
 4. AI制約学習機能
    - 過去シフトから制約ルール学習
    - シフト品質向上
+   - 自動最適化
+
+5. SaaS化
+   - 複数クリニック向けサービス化
+   - 月額課金システム
+   - ランディングページ（landing-page.html）の本格運用
 
 ================================================================================
 付録: 主要ファイルリファレンス
 ================================================================================
 
 【設定ファイル】
-- .env.local: 環境変数（Supabase接続情報）
+- .env.local: 環境変数（Supabase・Dify接続情報）
 - tsconfig.json: TypeScript設定
 - tailwind.config.js: Tailwind CSS設定
 - next.config.js: Next.js設定
@@ -1780,23 +2188,54 @@ package.json:
 - components/ShiftPage.tsx: シフト表示・編集
 
 【API】
+- app/api/auth/login/route.ts: ログインAPI
+- app/api/auth/change-password/route.ts: パスワード変更API
 - app/api/employees/route.ts: 従業員API
+- app/api/employees/reorder/route.ts: 並び順変更API
 - app/api/workplaces/route.ts: 配置場所API
 - app/api/shift-patterns/route.ts: シフトパターンAPI
 - app/api/shifts/route.ts: シフトAPI
+- app/api/generate-shift/route.ts: AIシフト生成API (Dify連携)
 - app/api/leave-requests/route.ts: 希望休API
 - app/api/constraints/route.ts: AI制約条件API
 
 【データベース】
 - supabase/schema.sql: データベーススキーマ
 - supabase/seed.sql: 初期データ
+- supabase/migrations/: マイグレーションファイル
+
+【スクリプト】
+- scripts/setup-admin.ts: 管理者アカウント作成
+- scripts/setup-existing-employees.ts: 既存従業員アカウント作成
+- scripts/fix-order-index.ts: 並び順修正
+
+【ドキュメント】
+- README.md: プロジェクト説明
+- DIFY_SETUP.md: Dify連携セットアップガイド
+- PROJECT_DOCUMENTATION.txt: 本ドキュメント
+
+【営業・マーケティング】
+- landing-page.html: ランディングページ（クリニック向け営業用）
 
 ================================================================================
 変更履歴
 ================================================================================
 
+【2025-11-14】★本アップデート
+- バージョン2.0.0に更新
+- AIシフト生成機能実装（Dify連携）
+- 看護助手職種追加
+- 従業員・配置場所の並び順機能追加
+- 従業員アカウント自動作成機能（emp001形式）
+- ロールベースアクセス制御（admin/employee）
+- パスワード管理機能（初回変更強制）
+- 承認済み希望休のシフト統合表示
+- シフトパターン休みフラグ対応
+- 11. AIシフト生成システム セクション追加
+- 全セクションを最新仕様に更新
+
 【2025-11-06】
-- プロジェクト完全ドキュメント作成
+- プロジェクト完全ドキュメント作成（バージョン1.0.0）
 - リファクタリング完了
   - lib/colors.ts, lib/constants.ts 作成
   - 各コンポーネントから重複定義削除

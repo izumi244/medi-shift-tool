@@ -399,23 +399,13 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     })
     const result = await res.json()
     if (result.success) {
-      // 生成されたシフトを保存
-      if (result.data.shifts && result.data.shifts.length > 0) {
-        await bulkUpsertShifts(result.data.shifts.map((shift: any) => ({
-          employee_id: shift.employee_id,
-          date: shift.date,
-          shift_pattern_id: shift.shift_pattern_id || undefined,
-          am_workplace: shift.am_workplace || undefined,
-          pm_workplace: shift.pm_workplace || undefined,
-          status: 'draft' as const
-        })))
-        // データを再取得
-        await refreshAllData()
-      }
+      // /api/generate-shift内で既にDBに保存済みなので、ここでは再保存しない
+      // ローカル状態を更新するため、データを再取得
+      await refreshAllData()
       return result.data
     }
     throw new Error(result.error?.message || 'Failed to generate shift')
-  }, [bulkUpsertShifts, refreshAllData])
+  }, [refreshAllData])
 
   // ==================== 希望休管理 ====================
 
