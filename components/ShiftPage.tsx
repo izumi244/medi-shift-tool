@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X, Trash2 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ShiftPattern, Employee } from '@/types';
@@ -26,7 +26,7 @@ interface ShiftData {
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
   const { user } = useAuth();
-  const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift } = useShiftData();
+  const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift, deleteShift } = useShiftData();
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -218,6 +218,38 @@ const ShiftPage: React.FC = () => {
     }
   };
 
+  const handleDeleteShift = async () => {
+    if (!editingCell) return;
+
+    if (!confirm('このシフトを削除しますか？')) return;
+
+    const { employeeId, day } = editingCell;
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    // 既存のシフトを探す
+    const existingShift = shifts.find(s => {
+      const shiftDate = new Date(s.date);
+      return s.employee_id === employeeId &&
+             shiftDate.getFullYear() === year &&
+             shiftDate.getMonth() === month &&
+             shiftDate.getDate() === day;
+    });
+
+    if (!existingShift) {
+      alert('削除対象のシフトが見つかりません');
+      return;
+    }
+
+    try {
+      await deleteShift(existingShift.id);
+      handleCloseModal();
+    } catch (error) {
+      console.error('シフト削除エラー:', error);
+      alert('シフトの削除に失敗しました');
+    }
+  };
+
   const handleCloseModal = () => {
     setIsEditModalOpen(false);
     setEditingCell(null);
@@ -403,6 +435,10 @@ const ShiftPage: React.FC = () => {
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold">キャンセル</button>
+                <button type="button" onClick={handleDeleteShift} className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2">
+                  <Trash2 size={18} />
+                  削除
+                </button>
                 <button type="button" onClick={handleSaveEdit} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold">保存</button>
               </div>
             </form>
