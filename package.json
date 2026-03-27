@@ -10,7 +10,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "setup:admin": "tsx scripts/setup-admin.ts",
-    "setup:existing-employees": "tsx scripts/setup-existing-employees.ts"
+    "setup:existing-employees": "tsx scripts/setup-existing-employees.ts",
+    "fix:order-index": "tsx scripts/fix-order-index.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",

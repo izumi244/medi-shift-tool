@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
     const difyApiUrl = process.env.DIFY_API_URL
 
     if (!difyApiKey) {
-      throw new Error('DIFY_API_KEY environment variable is not set')
+      throw new Error('DIFY_API_KEY環境変数が設定されていません')
     }
     if (!difyApiUrl) {
-      throw new Error('DIFY_API_URL environment variable is not set')
+      throw new Error('DIFY_API_URL環境変数が設定されていません')
     }
 
     // データベースから必要なデータを取得
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     let fullText = ''
 
     if (!reader) {
-      throw new Error('Response body is null')
+      throw new Error('レスポンスボディがnullです')
     }
 
     while (true) {
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
 
         shiftData = JSON.parse(jsonText)
       } else {
-        throw new Error('JSON data not found in response')
+        throw new Error('レスポンスにJSONデータが見つかりません')
       }
     } catch (parseError) {
       console.error('JSON parse error:', parseError)
@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
+    const message = error instanceof Error ? error.message : '予期しないエラーが発生しました'
     console.error('Error generating shift:', error)
     return NextResponse.json(
       { success: false, error: { message: 'シフト生成中にエラーが発生しました' } },

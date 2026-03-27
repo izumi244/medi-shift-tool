@@ -103,8 +103,6 @@ export async function verifySession(sessionToken: string) {
  */
 export async function authenticate(credentials: LoginCredentials): Promise<{ user: User; session_token: string } | null> {
   try {
-    console.log(`ログイン試行: ${credentials.user_id}`)
-
     const supabase = createServerSupabaseClient()
 
     // 従業員番号で検索
@@ -113,8 +111,6 @@ export async function authenticate(credentials: LoginCredentials): Promise<{ use
       .select('*')
       .eq('employee_number', credentials.user_id)
       .single()
-
-    console.log(`データベース結果:`, { data, error })
 
     if (error || !data) {
       throw new Error('ユーザーIDが見つかりません')
@@ -196,10 +192,6 @@ export async function logout(sessionToken: string) {
  */
 export async function changePassword(employeeNumber: string, newPassword: string) {
   try {
-    console.log('=== changePassword デバッグ ===')
-    console.log('employeeNumber:', employeeNumber)
-    console.log('newPassword:', newPassword)
-
     // パラメータ検証
     if (!employeeNumber) {
       throw new Error('従業員番号が指定されていません')
@@ -213,12 +205,9 @@ export async function changePassword(employeeNumber: string, newPassword: string
       throw new Error(`パスワードの型が正しくありません: ${typeof newPassword}`)
     }
 
-    console.log('パスワードハッシュ化開始...')
     const hashedPassword = await hashPassword(newPassword)
-    console.log('パスワードハッシュ化完了')
 
     const supabase = createServerSupabaseClient()
-    console.log('データベース更新開始...')
     const { error } = await supabase
       .from('employees')
       .update({
@@ -229,11 +218,8 @@ export async function changePassword(employeeNumber: string, newPassword: string
       .eq('employee_number', employeeNumber)
 
     if (error) {
-      console.log('データベース更新エラー:', error)
       throw error
     }
-
-    console.log('パスワード変更成功')
   } catch (error) {
     console.error('パスワード変更エラー:', error)
     throw error

@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Constraint content is required' }
+          error: { message: '制約内容は必須です' }
         },
         { status: 400 }
       )
@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest) {
 
     if (!body.id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Constraint ID is required' } },
+        { success: false, error: { message: '制約IDは必須です' } },
         { status: 400 }
       )
     }
@@ -172,7 +172,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Constraint ID is required' } },
+        { success: false, error: { message: '制約IDは必須です' } },
         { status: 400 }
       )
     }

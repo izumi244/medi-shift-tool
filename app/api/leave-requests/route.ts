@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Employee ID, date, and leave_type are required' }
+          error: { message: '従業員ID、日付、休暇種別は必須です' }
         },
         { status: 400 }
       )
@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
 
     if (!body.id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Leave request ID is required' } },
+        { success: false, error: { message: '希望休申請IDは必須です' } },
         { status: 400 }
       )
     }
@@ -174,7 +174,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Leave request ID is required' } },
+        { success: false, error: { message: '希望休申請IDは必須です' } },
         { status: 400 }
       )
     }

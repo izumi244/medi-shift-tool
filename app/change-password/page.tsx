@@ -94,8 +94,8 @@ export default function ChangePasswordPage() {
       sessionStorage.removeItem('session')
 
       router.push('/login')
-    } catch (err: any) {
-      setError(err.message || 'パスワード変更に失敗しました')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'パスワード変更に失敗しました')
     } finally {
       setIsSubmitting(false)
     }

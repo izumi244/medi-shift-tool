@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Employee ID and date are required' }
+          error: { message: '従業員IDと日付は必須です' }
         },
         { status: 400 }
       )
@@ -139,7 +139,7 @@ export async function PUT(request: NextRequest) {
 
     if (!body.id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Shift ID is required' } },
+        { success: false, error: { message: 'シフトIDは必須です' } },
         { status: 400 }
       )
     }
@@ -192,7 +192,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Shift ID is required' } },
+        { success: false, error: { message: 'シフトIDは必須です' } },
         { status: 400 }
       )
     }

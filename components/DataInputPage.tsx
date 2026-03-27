@@ -149,7 +149,6 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
     if (onNavigate) {
       onNavigate(cardId)
     } else {
-      console.log(`Navigate to ${cardId}`)
       alert(`${cardId}ページに遷移します（実装予定）`)
     }
   }
@@ -164,13 +163,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
 
     try {
       // Dify Workflow APIを使ってシフトを生成
-      console.log('シフト生成開始:', targetMonth)
-      console.log('特別要望:', specialRequests || 'なし')
-
       const result = await generateShift(targetMonth, specialRequests || undefined)
-
-      console.log('シフト生成結果:', result)
-      console.log('生成されたシフト数:', result.shifts?.length || 0)
 
       if (result.shifts && result.shifts.length > 0) {
         alert(`${targetMonth}のシフトを作成しました！\n生成されたシフト数: ${result.shifts.length}`)

@@ -176,7 +176,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deleteEmployee = useCallback(async (id: string) => {
-    const res = await fetch(`/api/employees?id=${id}`, {
+    const res = await authFetch(`/api/employees?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()
@@ -242,7 +242,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deleteWorkplace = useCallback(async (id: string) => {
-    const res = await fetch(`/api/workplaces?id=${id}`, {
+    const res = await authFetch(`/api/workplaces?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()
@@ -293,7 +293,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deleteShiftPattern = useCallback(async (id: string) => {
-    const res = await fetch(`/api/shift-patterns?id=${id}`, {
+    const res = await authFetch(`/api/shift-patterns?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()
@@ -344,7 +344,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deleteShift = useCallback(async (id: string) => {
-    const res = await fetch(`/api/shifts?id=${id}`, {
+    const res = await authFetch(`/api/shifts?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()
@@ -426,26 +426,23 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateLeaveRequest = useCallback(async (id: string, updates: Partial<LeaveRequest>) => {
-    console.log('[updateLeaveRequest] Request:', { id, updates })
     const res = await authFetch('/api/leave-requests', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
     })
     const result = await res.json()
-    console.log('[updateLeaveRequest] Response:', result)
     if (result.success) {
       setLeaveRequests((prev) =>
         prev.map((leave) => (leave.id === id ? result.data : leave))
       )
     } else {
-      console.error('[updateLeaveRequest] Error:', result.error)
       throw new Error(result.error?.message || 'Failed to update leave request')
     }
   }, [])
 
   const deleteLeaveRequest = useCallback(async (id: string) => {
-    const res = await fetch(`/api/leave-requests?id=${id}`, {
+    const res = await authFetch(`/api/leave-requests?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()
@@ -509,7 +506,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const deleteConstraint = useCallback(async (id: string) => {
-    const res = await fetch(`/api/constraints?id=${id}`, {
+    const res = await authFetch(`/api/constraints?id=${id}`, {
       method: 'DELETE',
     })
     const result = await res.json()

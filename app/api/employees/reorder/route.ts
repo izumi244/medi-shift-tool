@@ -23,14 +23,14 @@ export async function PATCH(request: NextRequest) {
 
     if (!employeeId || !direction) {
       return NextResponse.json(
-        { success: false, error: { message: 'employeeId and direction are required' } },
+        { success: false, error: { message: '従業員IDと方向は必須です' } },
         { status: 400 }
       )
     }
 
     if (direction !== 'up' && direction !== 'down') {
       return NextResponse.json(
-        { success: false, error: { message: 'direction must be "up" or "down"' } },
+        { success: false, error: { message: '方向は「up」または「down」である必要があります' } },
         { status: 400 }
       )
     }
@@ -46,10 +46,10 @@ export async function PATCH(request: NextRequest) {
     if (fetchError) throw fetchError
 
     // 対象従業員のインデックスを取得
-    const currentIndex = employees.findIndex((emp: any) => emp.id === employeeId)
+    const currentIndex = employees.findIndex((emp: { id: string; order_index: number }) => emp.id === employeeId)
     if (currentIndex === -1) {
       return NextResponse.json(
-        { success: false, error: { message: 'Employee not found' } },
+        { success: false, error: { message: '従業員が見つかりません' } },
         { status: 404 }
       )
     }
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest) {
     // 範囲外チェック
     if (targetIndex < 0 || targetIndex >= employees.length) {
       return NextResponse.json(
-        { success: false, error: { message: 'Cannot move beyond boundaries' } },
+        { success: false, error: { message: 'これ以上移動できません' } },
         { status: 400 }
       )
     }
@@ -90,7 +90,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { message: 'Order updated successfully' }
+      data: { message: '並び順を更新しました' }
     })
   } catch (error: unknown) {
     console.error('Unexpected error in PATCH /api/employees/reorder:', error)

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Name, facility, time_slot, and day_of_week are required' }
+          error: { message: '名前、施設、時間帯、曜日は必須です' }
         },
         { status: 400 }
       )
@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
 
     if (!body.id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Workplace ID is required' } },
+        { success: false, error: { message: '配置場所IDは必須です' } },
         { status: 400 }
       )
     }
@@ -180,7 +180,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Workplace ID is required' } },
+        { success: false, error: { message: '配置場所IDは必須です' } },
         { status: 400 }
       )
     }

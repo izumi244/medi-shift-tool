@@ -50,7 +50,8 @@
       "Bash(grep -r \"PageType\\\\|Statistics\\\\|RecentActivity\" . --include=*.tsx --include=*.ts)",
       "Bash(grep -r \"Statistics\\\\|RecentActivity\\\\|Notification\\\\|AppState\" . --include=*.tsx --include=*.ts)",
       "Bash(grep -r \"lib/auth.*validatePassword\\\\|from.*auth.*validatePassword\" . --include=*.tsx --include=*.ts)",
-      "Bash(grep -r \"import.*Statistics\\\\|import.*RecentActivity\\\\|import.*Notification\\\\|import.*AppState\" . --include=*.tsx --include=*.ts)"
+      "Bash(grep -r \"import.*Statistics\\\\|import.*RecentActivity\\\\|import.*Notification\\\\|import.*AppState\" . --include=*.tsx --include=*.ts)",
+      "Bash(npx next:*)"
     ],
     "deny": [],
     "ask": []

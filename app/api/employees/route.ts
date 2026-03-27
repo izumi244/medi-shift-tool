@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Name, employment_type, and job_type are required' }
+          error: { message: '氏名、雇用形態、職種は必須です' }
         },
         { status: 400 }
       )
@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest) {
 
     if (!body.id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Employee ID is required' } },
+        { success: false, error: { message: '従業員IDは必須です' } },
         { status: 400 }
       )
     }
@@ -201,7 +201,7 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: { message: 'Employee ID is required' } },
+        { success: false, error: { message: '従業員IDは必須です' } },
         { status: 400 }
       )
     }
