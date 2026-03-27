@@ -83,10 +83,12 @@ export async function verifySession(sessionToken: string) {
     return {
       id: data.id,
       user_id: data.employee_number || '',
+      employee_number: data.employee_number || '',
       name: data.name,
       role: data.is_system_account ?
         (isDeveloper ? 'developer' : 'admin') :
         'employee',
+      password_changed: data.password_changed ?? false,
       created_at: data.created_at,
       last_login: data.last_login
     }

@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
                 fullText = outputs.text
               }
             }
-          } catch (e) {
+          } catch (e: unknown) {
             // JSON parse error - skip
           }
         }
@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
       } else {
         throw new Error('レスポンスにJSONデータが見つかりません')
       }
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       console.error('JSON parse error:', parseError)
 
       return NextResponse.json({
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // バリデーション＆修正
-    const validatedShifts = shiftData.shifts.filter((shift: any) => {
+    const validatedShifts = shiftData.shifts.filter((shift: { date?: string; employee_id?: string; shift_pattern_id?: string; [key: string]: unknown }) => {
       // 必須フィールドチェック
       if (!shift.date || !shift.employee_id) {
         return false
