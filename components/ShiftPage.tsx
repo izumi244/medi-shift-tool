@@ -38,6 +38,8 @@ const ShiftPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const [editValues, setEditValues] = useState({
     editType: 'pattern' as 'pattern' | 'custom' | 'rest',
     am: '',
@@ -177,6 +179,7 @@ const ShiftPage: React.FC = () => {
 
   const handleSaveEdit = async () => {
     if (!editingCell) return;
+    setIsSaving(true);
     const { employeeId, day } = editingCell;
 
     const year = currentDate.getFullYear();
@@ -215,6 +218,8 @@ const ShiftPage: React.FC = () => {
     } catch (error) {
       console.error('シフト保存エラー:', error);
       alert('シフトの保存に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -223,6 +228,7 @@ const ShiftPage: React.FC = () => {
 
     if (!confirm('このシフトを削除しますか？')) return;
 
+    setIsSaving(true);
     const { employeeId, day } = editingCell;
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -238,6 +244,7 @@ const ShiftPage: React.FC = () => {
 
     if (!existingShift) {
       alert('削除対象のシフトが見つかりません');
+      setIsSaving(false);
       return;
     }
 
@@ -247,6 +254,8 @@ const ShiftPage: React.FC = () => {
     } catch (error) {
       console.error('シフト削除エラー:', error);
       alert('シフトの削除に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -434,12 +443,12 @@ const ShiftPage: React.FC = () => {
               )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold">キャンセル</button>
-                <button type="button" onClick={handleDeleteShift} className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2">
+                <button type="button" onClick={handleCloseModal} disabled={isSaving} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold disabled:opacity-50">キャンセル</button>
+                <button type="button" onClick={handleDeleteShift} disabled={isSaving} className="py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded-xl font-semibold flex items-center gap-2">
                   <Trash2 size={18} />
-                  削除
+                  {isSaving ? '処理中...' : '削除'}
                 </button>
-                <button type="button" onClick={handleSaveEdit} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold">保存</button>
+                <button type="button" onClick={handleSaveEdit} disabled={isSaving} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold">{isSaving ? '保存中...' : '保存'}</button>
               </div>
             </form>
           </div>

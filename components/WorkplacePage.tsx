@@ -18,6 +18,138 @@ import type { Workplace, FacilityType, TimeSlot, DayOfWeek } from '@/types'
 import { facilityColors } from '@/lib/colors'
 import { DAY_LABELS } from '@/lib/constants'
 
+// 施設ごとのUI設定
+const facilityConfig: Record<FacilityType, {
+  icon: string
+  label: string
+  addButtonClass: string
+  badgeBg: string
+  badgeText: string
+  editButtonClass: string
+}> = {
+  'クリニック棟': {
+    icon: '🏢',
+    label: 'クリニック棟',
+    addButtonClass: 'bg-blue-500 hover:bg-blue-600',
+    badgeBg: 'bg-blue-100',
+    badgeText: 'text-blue-700',
+    editButtonClass: 'text-blue-600 hover:bg-blue-100',
+  },
+  '健診棟': {
+    icon: '🔬',
+    label: '健診棟',
+    addButtonClass: 'bg-green-500 hover:bg-green-600',
+    badgeBg: 'bg-green-100',
+    badgeText: 'text-green-700',
+    editButtonClass: 'text-green-600 hover:bg-green-100',
+  },
+}
+
+// 再利用可能な施設セクションコンポーネント
+function FacilitySection({
+  facility,
+  timeSlot,
+  filteredWorkplaces,
+  onAdd,
+  onEdit,
+  onDelete,
+  onChangeOrder,
+}: {
+  facility: FacilityType
+  timeSlot: TimeSlot
+  filteredWorkplaces: Workplace[]
+  onAdd: () => void
+  onEdit: (workplace: Workplace) => void
+  onDelete: (id: string) => void
+  onChangeOrder: (id: string, direction: 'up' | 'down') => void
+}) {
+  const colors = facilityColors[facility]
+  const config = facilityConfig[facility]
+
+  return (
+    <div className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-6`}>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className={`text-lg font-bold ${colors.text} flex items-center gap-2`}>
+          {config.icon} {config.label}
+        </h4>
+        <button
+          onClick={onAdd}
+          className={`flex items-center gap-1 px-3 py-2 ${config.addButtonClass} text-white rounded-lg text-sm font-semibold transition-colors`}
+        >
+          <Plus className="w-4 h-4" />
+          追加
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {filteredWorkplaces.map((workplace, index) => (
+          <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => onChangeOrder(workplace.id, 'up')}
+                    disabled={index === 0}
+                    className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <ArrowUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => onChangeOrder(workplace.id, 'down')}
+                    disabled={index === filteredWorkplaces.length - 1}
+                    className={`p-1 rounded ${index === filteredWorkplaces.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    <ArrowDown className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900">{workplace.name}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+                      <Users className="w-3 h-3" />
+                      <span className="font-semibold">{workplace.required_count}人</span>
+                    </div>
+                  </div>
+                  {workplace.remarks && (
+                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {workplace.remarks}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${config.badgeBg} ${config.badgeText} px-2 py-1 rounded`}>
+                  #{workplace.order_index}
+                </span>
+                <button
+                  onClick={() => onEdit(workplace)}
+                  className={`p-2 ${config.editButtonClass} rounded-lg transition-colors`}
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(workplace.id)}
+                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredWorkplaces.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <p>配置場所が登録されていません</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function WorkplacePage() {
   const { workplaces, addWorkplace, updateWorkplace, deleteWorkplace: deleteWorkplaceFromContext } = useShiftData()
 
@@ -28,6 +160,7 @@ export default function WorkplacePage() {
   
   // 曜日選択の状態を追加
   const [selectedDayOfWeek, setSelectedDayOfWeek] = useState<DayOfWeek>('月')
+  const [isSaving, setIsSaving] = useState(false)
 
   // フォーム状態（人数フィールドを追加）
   const [formData, setFormData] = useState({
@@ -80,28 +213,40 @@ export default function WorkplacePage() {
 
   // 配置場所を保存
   const saveWorkplace = async () => {
-    if (editingWorkplace) {
-      // 編集
-      await updateWorkplace(editingWorkplace.id, formData)
-    } else {
-      // 新規追加
-      const filteredWorkplaces = getFilteredWorkplaces(formData.facility, formData.time_slot, formData.day_of_week)
-      const nextOrderIndex = Math.max(...filteredWorkplaces.map(wp => wp.order_index), 0) + 1
+    setIsSaving(true)
+    try {
+      if (editingWorkplace) {
+        // 編集
+        await updateWorkplace(editingWorkplace.id, formData)
+      } else {
+        // 新規追加
+        const filteredWorkplaces = getFilteredWorkplaces(formData.facility, formData.time_slot, formData.day_of_week)
+        const nextOrderIndex = Math.max(...filteredWorkplaces.map(wp => wp.order_index), 0) + 1
 
-      await addWorkplace({
-        ...formData,
-        order_index: nextOrderIndex,
-        is_active: true
-      })
+        await addWorkplace({
+          ...formData,
+          order_index: nextOrderIndex,
+          is_active: true
+        })
+      }
+      closeModal()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '配置場所の保存に失敗しました'
+      alert(message)
+    } finally {
+      setIsSaving(false)
     }
-
-    closeModal()
   }
 
   // 配置場所を削除
   const handleDeleteWorkplace = async (id: string) => {
     if (confirm('この配置場所を削除しますか？')) {
-      await deleteWorkplaceFromContext(id)
+      try {
+        await deleteWorkplaceFromContext(id)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '配置場所の削除に失敗しました'
+        alert(message)
+      }
     }
   }
 
@@ -177,168 +322,26 @@ export default function WorkplacePage() {
           </div>
 
           {/* クリニック棟 AM */}
-          <div className={`${facilityColors['クリニック棟'].bg} ${facilityColors['クリニック棟'].border} border-2 rounded-2xl p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className={`text-lg font-bold ${facilityColors['クリニック棟'].text} flex items-center gap-2`}>
-                🏢 クリニック棟
-              </h4>
-              <button
-                onClick={() => openModal(undefined, 'クリニック棟', 'AM')}
-                className="flex items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).map((workplace, index) => (
-                <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'up')}
-                          disabled={index === 0}
-                          className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{workplace.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                            <Users className="w-3 h-3" />
-                            <span className="font-semibold">{workplace.required_count}人</span>
-                          </div>
-                        </div>
-                        {workplace.remarks && (
-                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {workplace.remarks}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                        #{workplace.order_index}
-                      </span>
-                      <button
-                        onClick={() => openModal(workplace)}
-                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkplace(workplace.id)}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek).length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>配置場所が登録されていません</p>
-              </div>
-            )}
-          </div>
+          <FacilitySection
+            facility="クリニック棟"
+            timeSlot="AM"
+            filteredWorkplaces={getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, 'クリニック棟', 'AM')}
+            onEdit={(workplace) => openModal(workplace)}
+            onDelete={handleDeleteWorkplace}
+            onChangeOrder={changeOrder}
+          />
 
           {/* 健診棟 AM */}
-          <div className={`${facilityColors['健診棟'].bg} ${facilityColors['健診棟'].border} border-2 rounded-2xl p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className={`text-lg font-bold ${facilityColors['健診棟'].text} flex items-center gap-2`}>
-                🔬 健診棟
-              </h4>
-              <button
-                onClick={() => openModal(undefined, '健診棟', 'AM')}
-                className="flex items-center gap-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).map((workplace, index) => (
-                <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'up')}
-                          disabled={index === 0}
-                          className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{workplace.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                            <Users className="w-3 h-3" />
-                            <span className="font-semibold">{workplace.required_count}人</span>
-                          </div>
-                        </div>
-                        {workplace.remarks && (
-                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {workplace.remarks}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        #{workplace.order_index}
-                      </span>
-                      <button
-                        onClick={() => openModal(workplace)}
-                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkplace(workplace.id)}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek).length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>配置場所が登録されていません</p>
-              </div>
-            )}
-          </div>
+          <FacilitySection
+            facility="健診棟"
+            timeSlot="AM"
+            filteredWorkplaces={getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, '健診棟', 'AM')}
+            onEdit={(workplace) => openModal(workplace)}
+            onDelete={handleDeleteWorkplace}
+            onChangeOrder={changeOrder}
+          />
         </div>
 
         {/* PM配置 */}
@@ -350,168 +353,26 @@ export default function WorkplacePage() {
           </div>
 
           {/* クリニック棟 PM */}
-          <div className={`${facilityColors['クリニック棟'].bg} ${facilityColors['クリニック棟'].border} border-2 rounded-2xl p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className={`text-lg font-bold ${facilityColors['クリニック棟'].text} flex items-center gap-2`}>
-                🏢 クリニック棟
-              </h4>
-              <button
-                onClick={() => openModal(undefined, 'クリニック棟', 'PM')}
-                className="flex items-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).map((workplace, index) => (
-                <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'up')}
-                          disabled={index === 0}
-                          className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{workplace.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                            <Users className="w-3 h-3" />
-                            <span className="font-semibold">{workplace.required_count}人</span>
-                          </div>
-                        </div>
-                        {workplace.remarks && (
-                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {workplace.remarks}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                        #{workplace.order_index}
-                      </span>
-                      <button
-                        onClick={() => openModal(workplace)}
-                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkplace(workplace.id)}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek).length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>配置場所が登録されていません</p>
-              </div>
-            )}
-          </div>
+          <FacilitySection
+            facility="クリニック棟"
+            timeSlot="PM"
+            filteredWorkplaces={getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, 'クリニック棟', 'PM')}
+            onEdit={(workplace) => openModal(workplace)}
+            onDelete={handleDeleteWorkplace}
+            onChangeOrder={changeOrder}
+          />
 
           {/* 健診棟 PM */}
-          <div className={`${facilityColors['健診棟'].bg} ${facilityColors['健診棟'].border} border-2 rounded-2xl p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className={`text-lg font-bold ${facilityColors['健診棟'].text} flex items-center gap-2`}>
-                🔬 健診棟
-              </h4>
-              <button
-                onClick={() => openModal(undefined, '健診棟', 'PM')}
-                className="flex items-center gap-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-semibold transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                追加
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).map((workplace, index) => (
-                <div key={workplace.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'up')}
-                          disabled={index === 0}
-                          className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => changeOrder(workplace.id, 'down')}
-                          disabled={index === getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length - 1}
-                          className={`p-1 rounded ${index === getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                        >
-                          <ArrowDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold text-gray-900">{workplace.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
-                            <Users className="w-3 h-3" />
-                            <span className="font-semibold">{workplace.required_count}人</span>
-                          </div>
-                        </div>
-                        {workplace.remarks && (
-                          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" />
-                            {workplace.remarks}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                        #{workplace.order_index}
-                      </span>
-                      <button
-                        onClick={() => openModal(workplace)}
-                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkplace(workplace.id)}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek).length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <MapPin className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>配置場所が登録されていません</p>
-              </div>
-            )}
-          </div>
+          <FacilitySection
+            facility="健診棟"
+            timeSlot="PM"
+            filteredWorkplaces={getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, '健診棟', 'PM')}
+            onEdit={(workplace) => openModal(workplace)}
+            onDelete={handleDeleteWorkplace}
+            onChangeOrder={changeOrder}
+          />
         </div>
       </div>
 
@@ -630,10 +491,11 @@ export default function WorkplacePage() {
                 <button
                   type="button"
                   onClick={saveWorkplace}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                  disabled={isSaving}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <Save className="w-5 h-5" />
-                  保存
+                  {isSaving ? '保存中...' : '保存'}
                 </button>
               </div>
             </form>

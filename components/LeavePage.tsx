@@ -39,6 +39,7 @@ const LeavePage: React.FC = () => {
   const [filterEmployee, setFilterEmployee] = useState('');
   const [requestType, setRequestType] = useState<'leave' | 'work'>('leave');
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // 従業員モードかどうか
   const isEmployee = user?.role === 'employee';
@@ -98,29 +99,53 @@ const LeavePage: React.FC = () => {
 
   // 希望休申請を承認
   const approveLeave = async (id: string) => {
-    await updateLeaveRequest(id, {
-      status: '承認' as RequestStatus
-    });
+    setIsSaving(true);
+    try {
+      await updateLeaveRequest(id, {
+        status: '承認' as RequestStatus
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '承認処理に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 希望休申請を却下
   const rejectLeave = async (id: string, reason: string) => {
-    await updateLeaveRequest(id, {
-      status: '却下' as RequestStatus,
-      rejection_reason: reason
-    });
+    setIsSaving(true);
+    try {
+      await updateLeaveRequest(id, {
+        status: '却下' as RequestStatus,
+        rejection_reason: reason
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '却下処理に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // 新規申請を追加
   const addRequest = async () => {
-    const finalLeaveType = requestType === 'work' ? '出勤可能' : formData.leave_type;
+    setIsSaving(true);
+    try {
+      const finalLeaveType = requestType === 'work' ? '出勤可能' : formData.leave_type;
 
-    await addLeaveRequest({
-      ...formData,
-      leave_type: finalLeaveType,
-      status: '申請中'
-    });
-    closeModal();
+      await addLeaveRequest({
+        ...formData,
+        leave_type: finalLeaveType,
+        status: '申請中'
+      });
+      closeModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '申請の追加に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // フィルタリングされた希望休
@@ -417,14 +442,16 @@ const LeavePage: React.FC = () => {
                             <>
                               <button
                                 onClick={() => approveLeave(leave.id)}
-                                className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors"
+                                disabled={isSaving}
+                                className="p-1 text-green-600 hover:bg-green-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="承認"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => rejectLeave(leave.id, '管理者による却下')}
-                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                disabled={isSaving}
+                                className="p-1 text-red-600 hover:bg-red-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="却下"
                               >
                                 <XCircle className="w-4 h-4" />
@@ -547,10 +574,10 @@ const LeavePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={addRequest}
-                  disabled={!formData.employee_id || !formData.date}
+                  disabled={!formData.employee_id || !formData.date || isSaving}
                   className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300"
                 >
-                  申請
+                  {isSaving ? '保存中...' : '申請'}
                 </button>
               </div>
             </form>
@@ -639,22 +666,24 @@ const LeavePage: React.FC = () => {
                     {selectedLeave.status === '申請中' && (
                       <>
                         <button
-                          onClick={() => {
-                            approveLeave(selectedLeave.id);
+                          onClick={async () => {
+                            await approveLeave(selectedLeave.id);
                             setSelectedLeave(null);
                           }}
-                          className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors"
+                          disabled={isSaving}
+                          className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
                         >
-                          承認
+                          {isSaving ? '処理中...' : '承認'}
                         </button>
                         <button
-                          onClick={() => {
-                            rejectLeave(selectedLeave.id, '管理者による却下');
+                          onClick={async () => {
+                            await rejectLeave(selectedLeave.id, '管理者による却下');
                             setSelectedLeave(null);
                           }}
-                          className="flex-1 py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors"
+                          disabled={isSaving}
+                          className="flex-1 py-2 px-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
                         >
-                          却下
+                          {isSaving ? '処理中...' : '却下'}
                         </button>
                       </>
                     )}

@@ -27,6 +27,9 @@ interface ShiftDataContextType {
   loading: boolean
   setLoading: (loading: boolean) => void
 
+  // エラー状態
+  refreshError: string | null
+
   // 従業員管理
   addEmployee: (employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee | EmployeeAccountInfo>
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
@@ -85,11 +88,13 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // ==================== データリフレッシュ ====================
 
   const refreshAllData = useCallback(async () => {
     setLoading(true)
+    setRefreshError(null)
     try {
       const [
         employeesRes,
@@ -130,7 +135,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       if (shiftsData.success) setShifts(shiftsData.data)
       if (leaveRequestsData.success) setLeaveRequests(leaveRequestsData.data)
     } catch (error) {
-      // エラーは無視（本番環境ではロギングサービスに送信することを推奨）
+      const message = error instanceof Error ? error.message : 'データの取得に失敗しました'
+      setRefreshError(message)
+      console.error('refreshAllData error:', error)
     } finally {
       setLoading(false)
     }
@@ -535,6 +542,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     constraints,
     loading,
     setLoading,
+    refreshError,
     addEmployee,
     updateEmployee,
     deleteEmployee,

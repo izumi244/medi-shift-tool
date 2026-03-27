@@ -20,6 +20,7 @@ type ShiftPatternFormData = Omit<ShiftPattern, 'id'>;
 
 const ShiftPatternPage: React.FC = () => {
   const { shiftPatterns, addShiftPattern, updateShiftPattern, deleteShiftPattern: deleteShiftPatternFromContext } = useShiftData();
+  const [isSaving, setIsSaving] = useState(false);
 
   // 時刻を HH:MM:SS から HH:MM に変換
   const formatTime = (time: string): string => {
@@ -52,17 +53,30 @@ const ShiftPatternPage: React.FC = () => {
   } = useModalManager<ShiftPattern, ShiftPatternFormData>(getInitialFormData, mapPatternToFormData);
 
   const savePattern = async () => {
-    if (editingPattern) {
-      await updateShiftPattern(editingPattern.id, formData);
-    } else {
-      await addShiftPattern(formData);
+    setIsSaving(true);
+    try {
+      if (editingPattern) {
+        await updateShiftPattern(editingPattern.id, formData);
+      } else {
+        await addShiftPattern(formData);
+      }
+      closeModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'シフトパターンの保存に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
     }
-    closeModal();
   };
 
   const handleDeletePattern = async (id: string) => {
     if (confirm('このシフトパターンを削除しますか？')) {
-      await deleteShiftPatternFromContext(id);
+      try {
+        await deleteShiftPatternFromContext(id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'シフトパターンの削除に失敗しました';
+        alert(message);
+      }
     }
   };
 
@@ -223,11 +237,11 @@ const ShiftPatternPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={savePattern}
-                  disabled={!formData.name || !formData.start_time || !formData.end_time}
+                  disabled={!formData.name || !formData.start_time || !formData.end_time || isSaving}
                   className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <Save className="w-5 h-5" />
-                  保存
+                  {isSaving ? '保存中...' : '保存'}
                 </button>
               </div>
             </form>

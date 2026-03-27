@@ -38,6 +38,7 @@ const EmployeePage: React.FC = () => {
   const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext, reorderEmployee } = useShiftData();
 
   const [searchText, setSearchText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // アカウント情報モーダル用の状態
   const [showAccountInfo, setShowAccountInfo] = useState(false);
@@ -102,23 +103,31 @@ const EmployeePage: React.FC = () => {
   };
 
   const saveEmployee = async () => {
-    if (editingEmployee) {
-      // 更新の場合
-      await updateEmployee(editingEmployee.id, formData);
-      closeModal();
-    } else {
-      // 新規追加の場合（アカウント情報を取得）
-      const newAccountInfo = await addEmployee({
-        ...formData,
-        is_active: true
-      });
+    setIsSaving(true);
+    try {
+      if (editingEmployee) {
+        // 更新の場合
+        await updateEmployee(editingEmployee.id, formData);
+        closeModal();
+      } else {
+        // 新規追加の場合（アカウント情報を取得）
+        const newAccountInfo = await addEmployee({
+          ...formData,
+          is_active: true
+        });
 
-      // アカウント情報モーダルを表示
-      if (newAccountInfo && 'initial_password' in newAccountInfo) {
-        setAccountInfo(newAccountInfo as EmployeeAccountInfo);
-        setShowAccountInfo(true);
+        // アカウント情報モーダルを表示
+        if (newAccountInfo && 'initial_password' in newAccountInfo) {
+          setAccountInfo(newAccountInfo as EmployeeAccountInfo);
+          setShowAccountInfo(true);
+        }
+        closeModal();
       }
-      closeModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '従業員の保存に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -138,7 +147,12 @@ const EmployeePage: React.FC = () => {
 
   const handleDeleteEmployee = async (id: string) => {
     if (confirm('この従業員を削除しますか？')) {
-      await deleteEmployeeFromContext(id);
+      try {
+        await deleteEmployeeFromContext(id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '従業員の削除に失敗しました';
+        alert(message);
+      }
     }
   };
 
@@ -417,7 +431,7 @@ const EmployeePage: React.FC = () => {
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button type="button" onClick={closeModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors">キャンセル</button>
-                <button type="button" onClick={saveEmployee} disabled={!formData.name} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{editingEmployee ? '更新' : '追加'}</button>
+                <button type="button" onClick={saveEmployee} disabled={!formData.name || isSaving} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{isSaving ? '保存中...' : (editingEmployee ? '更新' : '追加')}</button>
               </div>
             </form>
           </div>
