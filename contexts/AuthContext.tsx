@@ -65,6 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const handleLogout = async () => {
+    // サーバー側のセッション無効化 + cookie削除
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // ネットワークエラーでもクライアント側はログアウトする
+    }
     clearSession()
     setAuthState({
       user: null,

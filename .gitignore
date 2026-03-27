@@ -36,7 +36,9 @@ yarn-error.log*
 next-env.d.ts
 
 # project-specific exclusions
-landing-page.html
-開発パートナーシップ_引き継ぎ書.md
+docs/
 output/
-cost-calculator.html
+
+# playwright
+/playwright-report/
+/test-results/

@@ -27,13 +27,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         user: result.user,
         session_token: result.session_token
       }
     })
+
+    // Server Actionsで認証できるようにcookieにもセッショントークンを設定
+    const maxAge = remember_me ? 14 * 24 * 60 * 60 : 60 * 60 // remember: 14日、通常: 1時間（localStorageと同じ）
+    response.cookies.set('session_token', result.session_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge
+    })
+
+    return response
   } catch (error: unknown) {
     console.error('Login error:', error)
     return NextResponse.json(

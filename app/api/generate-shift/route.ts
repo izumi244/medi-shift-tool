@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     ] = await Promise.all([
       supabase.from('employees').select('*').eq('is_active', true).order('order_index', { ascending: true }),
       supabase.from('workplaces').select('*').eq('is_active', true).order('order_index', { ascending: true }),
-      supabase.from('shift_patterns').select('*').order('created_at', { ascending: false }),
+      supabase.from('shift_patterns').select('*').eq('is_active', true).order('created_at', { ascending: false }),
       supabase.from('leave_requests').select('*').gte('date', startDate).lte('date', lastDate).eq('status', '承認'),
       supabase.from('ai_constraint_guidelines').select('*').eq('is_active', true)
     ])
@@ -116,14 +116,69 @@ export async function POST(request: NextRequest) {
       body.special_requests ? `\n【特別要望】\n${body.special_requests}` : ''
     ].filter(Boolean).join('\n')
 
+    // シフトパターンのID→名前マッピングを作成
+    const patternIdToName: Record<string, string> = {}
+    if (shiftPatterns) {
+      for (const p of shiftPatterns as ShiftPattern[]) {
+        patternIdToName[p.id] = p.name
+      }
+    }
+
+    // 従業員名のID→名前マッピングを作成
+    const employeeIdToName: Record<string, string> = {}
+    if (employees) {
+      for (const e of employees as Employee[]) {
+        employeeIdToName[e.id] = e.name
+      }
+    }
+
+    // AI向けにクリーンなデータを作成（不要フィールドを除去）
+    const cleanedEmployees = (employees || []).map((e: Employee) => ({
+      id: e.id,
+      name: e.name,
+      employment_type: e.employment_type,
+      job_type: e.job_type,
+      available_days: e.available_days,
+      assignable_workplaces_by_day: e.assignable_workplaces_by_day,
+      day_constraints: e.day_constraints,
+      assignable_shift_patterns: (e.assignable_shift_pattern_ids || []).map(
+        (pid: string) => patternIdToName[pid] || pid
+      ),
+    }))
+
+    const cleanedWorkplaces = (workplaces || []).map((w: Workplace) => ({
+      id: w.id,
+      name: w.name,
+      facility: w.facility,
+      time_slot: w.time_slot,
+      day_of_week: w.day_of_week,
+      required_count: w.required_count,
+    }))
+
+    const cleanedShiftPatterns = (shiftPatterns || []).map((p: ShiftPattern) => ({
+      id: p.id,
+      name: p.name,
+      start_time: p.start_time,
+      end_time: p.end_time,
+      break_minutes: p.break_minutes,
+    }))
+
+    const cleanedLeaveRequests = (leaveRequests || []).map((lr: LeaveRequest) => ({
+      employee_id: lr.employee_id,
+      employee_name: employeeIdToName[lr.employee_id] || lr.employee_id,
+      date: lr.date,
+      leave_type: lr.leave_type,
+      status: lr.status,
+    }))
+
     // Difyへ送信するデータ
     const difyInputs = {
       target_month: body.target_month,
       calendar: calendarSimple,
-      employees: JSON.stringify(employees, null, 2),
-      workplaces: JSON.stringify(workplaces, null, 2),
-      shift_patterns: JSON.stringify(shiftPatterns, null, 2),
-      leave_requests: JSON.stringify(leaveRequests, null, 2),
+      employees: JSON.stringify(cleanedEmployees, null, 2),
+      workplaces: JSON.stringify(cleanedWorkplaces, null, 2),
+      shift_patterns: JSON.stringify(cleanedShiftPatterns, null, 2),
+      leave_requests: JSON.stringify(cleanedLeaveRequests, null, 2),
       constraints: allConstraints,
     }
 
@@ -232,44 +287,121 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // 休暇日マップを作成（employee_id+date → leave_type）
+    const leaveMap = new Map<string, string>()
+    const leaveTypes = ['希望休', '有休', '忌引', '病欠', 'その他']
+    if (leaveRequests) {
+      for (const lr of leaveRequests as LeaveRequest[]) {
+        if (leaveTypes.includes(lr.leave_type)) {
+          leaveMap.set(`${lr.employee_id}_${lr.date}`, lr.leave_type)
+        }
+      }
+    }
+
+    // 重複チェック用セット（employee_id+date）
+    const assignedSet = new Set<string>()
+
     // バリデーション＆修正
+    const dropReasons: Record<string, number> = {
+      missing_fields: 0,
+      invalid_date: 0,
+      unknown_employee: 0,
+      unavailable_day: 0,
+      leave_conflict: 0,
+      duplicate: 0,
+    }
+
     const validatedShifts = shiftData.shifts.filter((shift: { date?: string; employee_id?: string; shift_pattern_id?: string; [key: string]: unknown }) => {
       // 必須フィールドチェック
       if (!shift.date || !shift.employee_id) {
+        dropReasons.missing_fields++
         return false
       }
 
       // 日付の有効性チェック
       const dateStr = shift.date
-      const [year, month, day] = dateStr.split('-').map(Number)
-      const reconstructedDate = new Date(year, month - 1, day)
+      const [sYear, sMonth, sDay] = dateStr.split('-').map(Number)
+      const reconstructedDate = new Date(sYear, sMonth - 1, sDay)
 
       if (
-        reconstructedDate.getFullYear() !== year ||
-        reconstructedDate.getMonth() !== month - 1 ||
-        reconstructedDate.getDate() !== day
+        reconstructedDate.getFullYear() !== sYear ||
+        reconstructedDate.getMonth() !== sMonth - 1 ||
+        reconstructedDate.getDate() !== sDay
       ) {
+        dropReasons.invalid_date++
         return false
       }
 
       // 従業員の存在チェック
       const employee = employees?.find((emp: Employee) => emp.id === shift.employee_id)
       if (!employee) {
+        dropReasons.unknown_employee++
         return false
       }
 
       // 従業員の勤務可能曜日チェック
-      const shiftDate = new Date(shift.date)
+      const shiftDate = new Date(sYear, sMonth - 1, sDay)
       const dayOfWeek = shiftDate.getDay()
       const dayNames = ['日', '月', '火', '水', '木', '金', '土']
       const shiftDayName = dayNames[dayOfWeek]
 
       if (employee.available_days && !employee.available_days.includes(shiftDayName)) {
+        dropReasons.unavailable_day++
         return false
       }
 
+      // 休暇日チェック（承認済み休暇の日にシフトを割り当てない）
+      const leaveKey = `${shift.employee_id}_${shift.date}`
+      if (leaveMap.has(leaveKey)) {
+        dropReasons.leave_conflict++
+        return false
+      }
+
+      // 重複チェック（同一従業員が同一日に複数シフト）
+      const dupKey = `${shift.employee_id}_${shift.date}`
+      if (assignedSet.has(dupKey)) {
+        dropReasons.duplicate++
+        return false
+      }
+      assignedSet.add(dupKey)
+
       return true
     })
+
+    // 有効なshift_pattern_idのセットを作成
+    // クエリで既にis_active=trueフィルタ済み
+    const validPatternIds = new Set(
+      (shiftPatterns as ShiftPattern[]).map((p: ShiftPattern) => p.id)
+    )
+
+    // DBカラムにマッピング（AIの出力から必要なフィールドのみ抽出）
+    const mappedShifts = validatedShifts.map((shift: Record<string, unknown>) => {
+      // shift_pattern_idが無効な場合はnullにする（FK違反防止）
+      const patternId = shift.shift_pattern_id && validPatternIds.has(shift.shift_pattern_id as string)
+        ? shift.shift_pattern_id
+        : null
+
+      return {
+        employee_id: shift.employee_id,
+        date: shift.date,
+        shift_pattern_id: patternId,
+        am_workplace: shift.am_workplace || null,
+        pm_workplace: shift.pm_workplace || null,
+        custom_start_time: shift.custom_start_time || null,
+        custom_end_time: shift.custom_end_time || null,
+        is_rest: shift.is_rest || false,
+        rest_reason: shift.rest_reason || null,
+        status: 'draft' as const,
+      }
+    })
+
+    if (mappedShifts.length === 0) {
+      // Don't delete existing shifts if AI returned nothing valid
+      return NextResponse.json({
+        success: false,
+        error: { message: 'AIが有効なシフトを生成できませんでした' }
+      }, { status: 500 })
+    }
 
     // Dify成功後、既存シフトを削除
     const { error: deleteError } = await supabase
@@ -286,7 +418,7 @@ export async function POST(request: NextRequest) {
     // 新規シフトをデータベースに挿入
     const { error: insertError } = await supabase
       .from('shifts')
-      .insert(validatedShifts)
+      .insert(mappedShifts)
 
     if (insertError) {
       console.error('シフト挿入エラー:', insertError)
@@ -299,9 +431,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        shifts: validatedShifts,
+        shifts: mappedShifts,
         summary: {
-          total_shifts: validatedShifts.length,
+          total_generated: shiftData.shifts.length,
+          total_valid: validatedShifts.length,
+          dropped: shiftData.shifts.length - validatedShifts.length,
+          drop_reasons: dropReasons,
           target_month: body.target_month
         }
       }

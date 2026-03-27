@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { authFetch } from '@/lib/api-client'
+import { changePasswordAction } from '@/app/actions/auth'
 import { Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function ChangePasswordPage() {
@@ -71,16 +71,7 @@ export default function ChangePasswordPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await authFetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employee_number: user?.employee_number,
-          new_password: newPassword
-        })
-      })
-
-      const result = await response.json()
+      const result = await changePasswordAction(newPassword, user?.employee_number)
 
       if (!result.success) {
         throw new Error(result.error?.message || 'パスワード変更に失敗しました')
