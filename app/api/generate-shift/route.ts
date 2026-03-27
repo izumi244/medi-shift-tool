@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import type { Employee, Workplace, ShiftPattern, LeaveRequest, AIConstraintGuideline } from '@/types'
-import { authenticateRequest } from '@/lib/api-auth'
+import { authenticateRequest, isAdmin } from '@/lib/api-auth'
 
 // カレンダー生成関数（指定月の全日付を生成）
 function generateMonthCalendar(targetMonth: string) {
@@ -40,6 +40,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: '認証が必要です' } },
         { status: 401 }
+      )
+    }
+
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { success: false, error: { message: 'この操作には管理者権限が必要です' } },
+        { status: 403 }
       )
     }
 

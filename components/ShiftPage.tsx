@@ -333,20 +333,21 @@ const ShiftPage: React.FC = () => {
                 <button onClick={() => changeMonth('next')} className="p-2 rounded-md hover:bg-gray-100"><ChevronRight className="w-5 h-5 text-gray-600" /></button>
             </div>
             <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditMode(!editMode)}
-                  disabled={isEmployee}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    isEmployee
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : editMode
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  <Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
+                {!isEmployee && (
+                  <>
+                    <button
+                      onClick={() => setEditMode(!editMode)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        editMode
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      <Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
+                  </>
+                )}
             </div>
         </div>
 

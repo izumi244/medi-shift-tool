@@ -290,22 +290,24 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
         })}
       </div>
 
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-              <div className={`${stat.color}`}>
-                {stat.icon}
+      {/* 統計カード（管理者・開発者のみ表示） */}
+      {!isEmployee && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+                <div className={`${stat.color}`}>
+                  {stat.icon}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

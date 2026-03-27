@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { Shift } from '@/types'
-import { authenticateRequest } from '@/lib/api-auth'
+import { authenticateRequest, isAdmin } from '@/lib/api-auth'
 
 // GET: シフト割当の取得（日付範囲指定可能）
 export async function GET(request: NextRequest) {
@@ -66,6 +66,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: '認証が必要です' } },
         { status: 401 }
+      )
+    }
+
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { success: false, error: { message: 'この操作には管理者権限が必要です' } },
+        { status: 403 }
       )
     }
 
@@ -134,6 +141,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { success: false, error: { message: 'この操作には管理者権限が必要です' } },
+        { status: 403 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -183,6 +197,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: '認証が必要です' } },
         { status: 401 }
+      )
+    }
+
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { success: false, error: { message: 'この操作には管理者権限が必要です' } },
+        { status: 403 }
       )
     }
 

@@ -60,7 +60,8 @@
       "Bash(grep -n \"catch \\(\" app/api/**/*.ts lib/*.ts contexts/*.tsx components/*.tsx)",
       "Bash(ls -la /c/Users/tooth/Downloads/*/Shift_M/lib/auth.ts)",
       "Bash(grep -n \"try {\" components/*.tsx)",
-      "Bash(grep -n \"catch \\(error\\)\" components/*.tsx)"
+      "Bash(grep -n \"catch \\(error\\)\" components/*.tsx)",
+      "Bash(find C:UserstoothDownloads開発フォルダShift_M -type f \\\\\\(-name *.md -o -name README* \\\\\\))"
     ],
     "deny": [],
     "ask": []

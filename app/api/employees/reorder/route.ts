@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { authenticateRequest } from '@/lib/api-auth'
+import { authenticateRequest, isAdmin } from '@/lib/api-auth'
 
 // PATCH: 従業員の並び順を更新
 export async function PATCH(request: NextRequest) {
@@ -13,6 +13,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: '認証が必要です' } },
         { status: 401 }
+      )
+    }
+
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { success: false, error: { message: 'この操作には管理者権限が必要です' } },
+        { status: 403 }
       )
     }
 

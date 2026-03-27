@@ -366,7 +366,7 @@ const LeavePage: React.FC = () => {
                               </span>
                             </div>
                             <div className={`text-xs opacity-75 truncate ${statusColors[leave.status].text}`}>
-                              {leave.leave_type}
+                              {isEmployee && leave.employee_id !== currentEmployeeId ? '休み' : leave.leave_type}
                             </div>
                           </div>
                         );
@@ -414,12 +414,18 @@ const LeavePage: React.FC = () => {
                         {new Date(leave.date).toLocaleDateString('ja-JP')}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leaveTypeColors[leave.leave_type]}`}>
-                          {leave.leave_type}
-                        </span>
+                        {isEmployee && leave.employee_id !== currentEmployeeId ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                            休み
+                          </span>
+                        ) : (
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leaveTypeColors[leave.leave_type]}`}>
+                            {leave.leave_type}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">
-                        {leave.reason}
+                        {isEmployee && leave.employee_id !== currentEmployeeId ? '—' : leave.reason}
                       </td>
                       <td className="px-6 py-4">
                         <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${statusColors[leave.status].bg} ${statusColors[leave.status].border} border w-fit`}>
@@ -438,7 +444,7 @@ const LeavePage: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          {leave.status === '申請中' && (
+                          {!isEmployee && leave.status === '申請中' && (
                             <>
                               <button
                                 onClick={() => approveLeave(leave.id)}
@@ -614,14 +620,22 @@ const LeavePage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">種類</label>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leaveTypeColors[selectedLeave.leave_type]}`}>
-                  {selectedLeave.leave_type}
-                </span>
+                {isEmployee && selectedLeave.employee_id !== currentEmployeeId ? (
+                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                    休み
+                  </span>
+                ) : (
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${leaveTypeColors[selectedLeave.leave_type]}`}>
+                    {selectedLeave.leave_type}
+                  </span>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">{selectedLeave.leave_type === '出勤可能' ? '補足事項' : '理由'}</label>
-                <p className="text-gray-900">{selectedLeave.reason}</p>
+                <p className="text-gray-900">
+                  {isEmployee && selectedLeave.employee_id !== currentEmployeeId ? '—' : selectedLeave.reason}
+                </p>
               </div>
 
               <div>
@@ -644,8 +658,8 @@ const LeavePage: React.FC = () => {
               </div>
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                {/* 従業員モード: 自分の申請のみ削除可能 */}
-                {isEmployee && selectedLeave.employee_id === currentEmployeeId && (
+                {/* 従業員モード: 自分の申請中の申請のみ削除可能 */}
+                {isEmployee && selectedLeave.employee_id === currentEmployeeId && selectedLeave.status === '申請中' && (
                   <button
                     onClick={async () => {
                       if (confirm('この申請を削除してもよろしいですか？')) {

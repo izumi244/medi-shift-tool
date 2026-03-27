@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { changePassword } from '@/lib/auth'
-import { authenticateRequest } from '@/lib/api-auth'
+import { authenticateRequest, isAdmin } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { employee_number, new_password } = body
+    const { new_password } = body
+
+    // 管理者/開発者はリクエストボディの employee_number を使用可能
+    // 一般従業員は自分自身の employee_number のみ使用（リクエストボディの値は無視）
+    const employee_number = isAdmin(user)
+      ? (body.employee_number || user.employee_number)
+      : user.employee_number
 
     // 入力検証
     if (!employee_number || !new_password) {

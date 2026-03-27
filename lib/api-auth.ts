@@ -12,6 +12,14 @@ import { verifySession } from '@/lib/auth'
  * @param request - NextRequest オブジェクト
  * @returns 認証されたユーザー情報、または null（認証失敗時）
  */
+/**
+ * ユーザーが管理者権限を持つかチェックする
+ * admin または developer ロールを管理者とみなす
+ */
+export function isAdmin(user: { role: string }): boolean {
+  return user.role === 'admin' || user.role === 'developer'
+}
+
 export async function authenticateRequest(request: NextRequest) {
   try {
     // 1. Authorization ヘッダーからトークンを取得 (Bearer token)
