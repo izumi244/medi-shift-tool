@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Employee,
   EmployeeAccountInfo,
@@ -80,6 +81,7 @@ const ShiftDataContext = createContext<ShiftDataContextType | undefined>(undefin
 // ==================== Provider ====================
 
 export function ShiftDataProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth()
   // 状態管理（初期値は空配列 - SupabaseからGETして取得）
   const [shiftPatterns, setShiftPatterns] = useState<ShiftPattern[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -93,6 +95,10 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== データリフレッシュ ====================
 
   const refreshAllData = useCallback(async () => {
+    // セッショントークンがない場合はスキップ（未ログイン時）
+    const { getSessionToken } = await import('@/lib/session')
+    if (!getSessionToken()) return
+
     setLoading(true)
     setRefreshError(null)
     try {
@@ -143,10 +149,12 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // 初回ロード時にデータを取得
+  // 認証状態が変わったらデータを取得
   useEffect(() => {
-    refreshAllData()
-  }, [refreshAllData])
+    if (isAuthenticated) {
+      refreshAllData()
+    }
+  }, [isAuthenticated, refreshAllData])
 
   // ==================== 従業員管理 ====================
 
