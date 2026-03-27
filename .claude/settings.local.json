@@ -21,7 +21,19 @@
       "Bash(npx supabase:*)",
       "Bash(npm run setup:admin:*)",
       "Bash(npm run setup:existing-employees:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(gh --version)",
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/Users/tooth/Downloads/開発フォルダ/Shift_M/$LOCALAPPDATA/GitHub CLI/**)",
+      "Bash(cmd //c \"where gh\")",
+      "Read(//c/Users/tooth/Downloads/開発フォルダ/Shift_M/$LOCALAPPDATA/**)",
+      "Read(//c/Users/tooth/Downloads/開発フォルダ/Shift_M/$HOME/scoop/shims/**)",
+      "Bash(cmd //c \"dir \"\"C:\\\\Program Files\\\\GitHub CLI\"\"\")",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\")",
+      "mcp__Claude_Preview__preview_start"
     ],
     "deny": [],
     "ask": []
