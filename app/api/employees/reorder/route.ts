@@ -3,10 +3,19 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // PATCH: 従業員の並び順を更新
 export async function PATCH(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -83,10 +92,10 @@ export async function PATCH(request: NextRequest) {
       success: true,
       data: { message: 'Order updated successfully' }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in PATCH /api/employees/reorder:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '従業員の並び替え中にエラーが発生しました' } },
       { status: 500 }
     )
   }

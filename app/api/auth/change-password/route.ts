@@ -3,9 +3,18 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { changePassword } from '@/lib/auth'
+import { authenticateRequest } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { employee_number, new_password } = body
 
@@ -22,12 +31,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'パスワードを変更しました'
+      data: { message: 'パスワードを変更しました' }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Change password error:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message || 'パスワード変更に失敗しました' } },
+      { success: false, error: { message: 'パスワード変更に失敗しました' } },
       { status: 500 }
     )
   }

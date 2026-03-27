@@ -10,6 +10,7 @@ import {
   LeaveRequest,
   AIConstraintGuideline,
 } from '@/types'
+import { authFetch } from '@/lib/api-client'
 
 // ==================== Context型定義 ====================
 
@@ -98,12 +99,12 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         shiftsRes,
         leaveRequestsRes
       ] = await Promise.all([
-        fetch('/api/employees'),
-        fetch('/api/workplaces'),
-        fetch('/api/shift-patterns'),
-        fetch('/api/constraints'),
-        fetch('/api/shifts'),
-        fetch('/api/leave-requests')
+        authFetch('/api/employees'),
+        authFetch('/api/workplaces'),
+        authFetch('/api/shift-patterns'),
+        authFetch('/api/constraints'),
+        authFetch('/api/shifts'),
+        authFetch('/api/leave-requests')
       ])
 
       const [
@@ -143,22 +144,23 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== 従業員管理 ====================
 
   const addEmployee = useCallback(async (employeeData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/employees', {
+    const res = await authFetch('/api/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(employeeData),
     })
     const result = await res.json()
     if (result.success) {
-      setEmployees((prev) => [...prev, result.data])
+      const employee = result.data.employee || result.data
+      setEmployees((prev) => [...prev, employee])
       // アカウント情報も返す（新規作成時のみ）
-      return result.accountInfo || result.data
+      return result.data.accountInfo || employee
     }
     throw new Error(result.error?.message || 'Failed to add employee')
   }, [])
 
   const updateEmployee = useCallback(async (id: string, updates: Partial<Employee>) => {
-    const res = await fetch('/api/employees', {
+    const res = await authFetch('/api/employees', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
@@ -193,7 +195,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   )
 
   const reorderEmployee = useCallback(async (employeeId: string, direction: 'up' | 'down') => {
-    const res = await fetch('/api/employees/reorder', {
+    const res = await authFetch('/api/employees/reorder', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ employeeId, direction }),
@@ -210,7 +212,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== 配置場所管理 ====================
 
   const addWorkplace = useCallback(async (workplaceData: Omit<Workplace, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/workplaces', {
+    const res = await authFetch('/api/workplaces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(workplaceData),
@@ -224,7 +226,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateWorkplace = useCallback(async (id: string, updates: Partial<Workplace>) => {
-    const res = await fetch('/api/workplaces', {
+    const res = await authFetch('/api/workplaces', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
@@ -261,7 +263,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== シフトパターン管理 ====================
 
   const addShiftPattern = useCallback(async (patternData: Omit<ShiftPattern, 'id'>) => {
-    const res = await fetch('/api/shift-patterns', {
+    const res = await authFetch('/api/shift-patterns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patternData),
@@ -275,7 +277,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateShiftPattern = useCallback(async (id: string, updates: Partial<ShiftPattern>) => {
-    const res = await fetch('/api/shift-patterns', {
+    const res = await authFetch('/api/shift-patterns', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
@@ -312,7 +314,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== シフト管理 ====================
 
   const addShift = useCallback(async (shiftData: Omit<Shift, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/shifts', {
+    const res = await authFetch('/api/shifts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(shiftData),
@@ -326,7 +328,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
-    const res = await fetch('/api/shifts', {
+    const res = await authFetch('/api/shifts', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
@@ -389,7 +391,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const generateShift = useCallback(async (targetMonth: string, specialRequests?: string) => {
-    const res = await fetch('/api/generate-shift', {
+    const res = await authFetch('/api/generate-shift', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -410,7 +412,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== 希望休管理 ====================
 
   const addLeaveRequest = useCallback(async (leaveData: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/leave-requests', {
+    const res = await authFetch('/api/leave-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(leaveData),
@@ -425,7 +427,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
 
   const updateLeaveRequest = useCallback(async (id: string, updates: Partial<LeaveRequest>) => {
     console.log('[updateLeaveRequest] Request:', { id, updates })
-    const res = await fetch('/api/leave-requests', {
+    const res = await authFetch('/api/leave-requests', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
@@ -477,7 +479,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   // ==================== 制約管理 ====================
 
   const addConstraint = useCallback(async (constraintData: Omit<AIConstraintGuideline, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/constraints', {
+    const res = await authFetch('/api/constraints', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(constraintData),
@@ -491,7 +493,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateConstraint = useCallback(async (id: string, updates: Partial<AIConstraintGuideline>) => {
-    const res = await fetch('/api/constraints', {
+    const res = await authFetch('/api/constraints', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),

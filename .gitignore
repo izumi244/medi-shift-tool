@@ -38,3 +38,5 @@ next-env.d.ts
 # project-specific exclusions
 landing-page.html
 開発パートナーシップ_引き継ぎ書.md
+output/
+cost-calculator.html

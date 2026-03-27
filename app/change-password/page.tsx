@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { authFetch } from '@/lib/api-client'
 import { Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 export default function ChangePasswordPage() {
@@ -70,7 +71,7 @@ export default function ChangePasswordPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('/api/auth/change-password', {
+      const response = await authFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

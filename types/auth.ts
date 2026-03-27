@@ -25,6 +25,7 @@ export interface AuthState {
 
 export interface SessionData {
   user: User
+  session_token: string
   expires_at: number
   remember_me: boolean
 }

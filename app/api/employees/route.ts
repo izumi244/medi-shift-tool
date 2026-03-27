@@ -5,10 +5,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { Employee, EmployeeAccountInfo } from '@/types'
 import { createEmployeeAccount } from '@/lib/auth'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // GET: 全従業員の取得
 export async function GET(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data, error} = await supabase
@@ -21,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching employees:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '従業員データの取得に失敗しました' } },
         { status: 500 }
       )
     }
@@ -30,10 +39,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data as Employee[]
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in GET /api/employees:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '従業員データの取得中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -42,6 +51,14 @@ export async function GET(request: NextRequest) {
 // POST: 新しい従業員の作成（アカウント自動作成）
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
 
     // 必須フィールドのバリデーション
@@ -101,13 +118,15 @@ export async function POST(request: NextRequest) {
     // アカウント情報を含めて返す
     return NextResponse.json({
       success: true,
-      data: updatedEmployee as Employee,
-      accountInfo: accountInfo as EmployeeAccountInfo
+      data: {
+        employee: updatedEmployee as Employee,
+        accountInfo: accountInfo as EmployeeAccountInfo
+      }
     }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in POST /api/employees:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '従業員の作成中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -116,6 +135,14 @@ export async function POST(request: NextRequest) {
 // PUT: 従業員の更新
 export async function PUT(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -139,7 +166,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating employee:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '従業員の更新に失敗しました' } },
         { status: 500 }
       )
     }
@@ -148,10 +175,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: data as Employee
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in PUT /api/employees:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '従業員の更新中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -160,6 +187,14 @@ export async function PUT(request: NextRequest) {
 // DELETE: 従業員の削除（物理削除）
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -180,7 +215,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting employee:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '従業員の削除に失敗しました' } },
         { status: 500 }
       )
     }
@@ -189,10 +224,10 @@ export async function DELETE(request: NextRequest) {
       success: true,
       data: { id }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in DELETE /api/employees:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '従業員の削除中にエラーが発生しました' } },
       { status: 500 }
     )
   }

@@ -129,28 +129,6 @@ export interface AIConstraintGuideline {
   updated_at: string
 }
 
-// ==================== UI型定義 ====================
-
-// アプリケーション状態
-export interface AppState {
-  current_page: PageType
-  current_user: {
-    id: string
-    name: string
-    role: 'admin' | 'staff'
-    permissions: string[]
-  }
-  loading: boolean
-  error?: string
-}
-
-// 通知
-export interface Notification {
-  type: 'success' | 'error' | 'warning' | 'info'
-  message: string
-  auto_hide: boolean
-}
-
 // ==================== フォーム型定義 ====================
 
 // 従業員フォーム
@@ -182,10 +160,7 @@ export interface ConstraintFormData {
 
 // APIエラー
 export interface APIError {
-  code: string
   message: string
-  details?: Record<string, any>
-  timestamp: string
 }
 
 // APIレスポンス
@@ -212,27 +187,6 @@ export interface LayoutProps {
 // ページコンポーネント
 export interface PageProps {
   searchParams?: { [key: string]: string | string[] | undefined }
-}
-
-// ==================== モック用型定義 ====================
-
-// 統計データ
-export interface Statistics {
-  employee_count: number
-  leave_requests_count: number
-  workplace_count: number
-  constraint_rules_count: number
-  monthly_hours: Record<string, number>
-  violations: string[]
-}
-
-// 最近の活動
-export interface RecentActivity {
-  id: string
-  type: 'leave_request' | 'shift_confirmed' | 'rule_added'
-  message: string
-  timestamp: string
-  user?: string
 }
 
 // ==================== ユーティリティ型 ====================

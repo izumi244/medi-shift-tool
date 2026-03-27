@@ -6,9 +6,6 @@ import type { DayOfWeek } from '@/types'
 /** 曜日リスト（月-土） */
 export const WORKDAYS: DayOfWeek[] = ['月', '火', '水', '木', '金', '土']
 
-/** 曜日リスト（日-土） */
-export const ALL_DAYS: DayOfWeek[] = ['日', '月', '火', '水', '木', '金', '土']
-
 /** 曜日の日本語表示ラベル */
 export const DAY_LABELS: Record<DayOfWeek, string> = {
   '月': '月曜日',

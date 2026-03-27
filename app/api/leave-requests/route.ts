@@ -4,10 +4,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { LeaveRequest } from '@/types'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // GET: 全希望休申請の取得
 export async function GET(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data, error } = await supabase
@@ -18,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching leave requests:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '希望休データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -27,10 +36,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data as LeaveRequest[]
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in GET /api/leave-requests:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -39,6 +48,14 @@ export async function GET(request: NextRequest) {
 // POST: 新しい希望休申請の作成
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -70,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating leave request:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '希望休データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -79,10 +96,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: data as LeaveRequest
     }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in POST /api/leave-requests:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -91,6 +108,14 @@ export async function POST(request: NextRequest) {
 // PUT: 希望休申請の更新
 export async function PUT(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -114,7 +139,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating leave request:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '希望休データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -123,10 +148,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: data as LeaveRequest
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in PUT /api/leave-requests:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -135,6 +160,14 @@ export async function PUT(request: NextRequest) {
 // DELETE: 希望休申請の削除（物理削除）
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -154,7 +187,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting leave request:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '希望休データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -163,10 +196,10 @@ export async function DELETE(request: NextRequest) {
       success: true,
       data: { id }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in DELETE /api/leave-requests:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }

@@ -4,10 +4,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { Workplace } from '@/types'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // GET: 全配置場所の取得
 export async function GET(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
 
     const { data, error } = await supabase
@@ -21,7 +30,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching workplaces:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '配置場所データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -30,10 +39,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data as Workplace[]
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in GET /api/workplaces:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -42,6 +51,14 @@ export async function GET(request: NextRequest) {
 // POST: 新しい配置場所の作成
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -76,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating workplace:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '配置場所データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -85,10 +102,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: data as Workplace
     }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in POST /api/workplaces:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -97,6 +114,14 @@ export async function POST(request: NextRequest) {
 // PUT: 配置場所の更新
 export async function PUT(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -120,7 +145,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating workplace:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '配置場所データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -129,10 +154,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: data as Workplace
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in PUT /api/workplaces:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -141,6 +166,14 @@ export async function PUT(request: NextRequest) {
 // DELETE: 配置場所の削除（物理削除）
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -161,7 +194,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting workplace:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: '配置場所データの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -170,10 +203,10 @@ export async function DELETE(request: NextRequest) {
       success: true,
       data: { id }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in DELETE /api/workplaces:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }

@@ -4,10 +4,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { Shift } from '@/types'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // GET: シフト割当の取得（日付範囲指定可能）
 export async function GET(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('start_date')
@@ -31,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching shifts:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: 'シフトデータの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -40,10 +49,10 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data as Shift[]
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in GET /api/shifts:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -52,6 +61,14 @@ export async function GET(request: NextRequest) {
 // POST: 新しいシフト割当の作成
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -88,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating shift:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: 'シフトデータの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -97,10 +114,10 @@ export async function POST(request: NextRequest) {
       success: true,
       data: data as Shift
     }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in POST /api/shifts:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -109,6 +126,14 @@ export async function POST(request: NextRequest) {
 // PUT: シフト割当の更新
 export async function PUT(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body = await request.json()
 
@@ -132,7 +157,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating shift:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: 'シフトデータの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -141,10 +166,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data: data as Shift
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in PUT /api/shifts:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }
@@ -153,6 +178,14 @@ export async function PUT(request: NextRequest) {
 // DELETE: シフト割当の削除（物理削除）
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -172,7 +205,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting shift:', error)
       return NextResponse.json(
-        { success: false, error: { message: error.message, code: error.code } },
+        { success: false, error: { message: 'シフトデータの処理に失敗しました' } },
         { status: 500 }
       )
     }
@@ -181,10 +214,10 @@ export async function DELETE(request: NextRequest) {
       success: true,
       data: { id }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unexpected error in DELETE /api/shifts:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message } },
+      { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } },
       { status: 500 }
     )
   }

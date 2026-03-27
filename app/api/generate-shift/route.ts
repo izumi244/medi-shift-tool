@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import type { Employee, Workplace, ShiftPattern, LeaveRequest, AIConstraintGuideline } from '@/types'
+import { authenticateRequest } from '@/lib/api-auth'
 
 // カレンダー生成関数（指定月の全日付を生成）
 function generateMonthCalendar(targetMonth: string) {
@@ -34,6 +35,14 @@ interface GenerateShiftRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await authenticateRequest(request)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: { message: '認証が必要です' } },
+        { status: 401 }
+      )
+    }
+
     const supabase = createServerSupabaseClient()
     const body: GenerateShiftRequest = await request.json()
 
@@ -45,21 +54,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Dify APIキーとURLを環境変数から取得
-    // DEBUG: 環境変数の実際の値を確認
-    console.log('RAW process.env.DIFY_API_KEY:', process.env.DIFY_API_KEY)
-    console.log('RAW process.env.DIFY_API_URL:', process.env.DIFY_API_URL)
+    const difyApiKey = process.env.DIFY_API_KEY
+    const difyApiUrl = process.env.DIFY_API_URL
 
-    const difyApiKey = process.env.DIFY_API_KEY || 'app-2dBmwpvZfTtycq6FcP5rXTke'
-    const difyApiUrl = process.env.DIFY_API_URL || 'https://api.dify.ai/v1'
-
-    console.log('Dify API Key (used):', difyApiKey ? `${difyApiKey.substring(0, 15)}...` : 'NOT FOUND')
-    console.log('Dify API URL (used):', difyApiUrl || 'NOT FOUND')
-
-    if (!difyApiKey || !difyApiUrl) {
-      return NextResponse.json(
-        { success: false, error: { message: 'Dify API設定が見つかりません。環境変数を設定してください。' } },
-        { status: 500 }
-      )
+    if (!difyApiKey) {
+      throw new Error('DIFY_API_KEY environment variable is not set')
+    }
+    if (!difyApiUrl) {
+      throw new Error('DIFY_API_URL environment variable is not set')
     }
 
     // データベースから必要なデータを取得
@@ -91,17 +93,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Fetched data counts:', {
-      employees: employees?.length || 0,
-      workplaces: workplaces?.length || 0,
-      shiftPatterns: shiftPatterns?.length || 0,
-      leaveRequests: leaveRequests?.length || 0,
-      constraints: constraints?.length || 0
-    })
-
     // カレンダー生成
     const calendar = generateMonthCalendar(body.target_month)
-    console.log('Calendar generated:', calendar.length, 'days')
 
     // シンプルなカレンダーフォーマット（日付と曜日）
     const calendarSimple = `営業日一覧:\n${calendar.map(d => `${d.date} (${d.day_of_week})`).join('\n')}`
@@ -127,15 +120,6 @@ export async function POST(request: NextRequest) {
       constraints: allConstraints,
     }
 
-    console.log('=== Dify Inputs Debug ===')
-    console.log('target_month:', difyInputs.target_month)
-    console.log('employees count:', employees?.length || 0)
-    console.log('workplaces count:', workplaces?.length || 0)
-    console.log('shift_patterns count:', shiftPatterns?.length || 0)
-    console.log('leave_requests count:', leaveRequests?.length || 0)
-    console.log('constraints:', allConstraints)
-    console.log('========================')
-
     // Dify Workflow APIを呼び出し（ストリーミングモード）
     const response = await fetch(`${difyApiUrl}/workflows/run`, {
       method: 'POST',
@@ -154,7 +138,7 @@ export async function POST(request: NextRequest) {
       const errorText = await response.text()
       console.error('Dify API error:', errorText)
       return NextResponse.json(
-        { success: false, error: { message: 'Dify APIエラー', details: errorText } },
+        { success: false, error: { message: 'シフト生成サービスへの接続に失敗しました' } },
         { status: response.status }
       )
     }
@@ -180,12 +164,9 @@ export async function POST(request: NextRequest) {
           try {
             const jsonData = JSON.parse(line.substring(6))
 
-            console.log('Event:', jsonData.event, 'Data keys:', Object.keys(jsonData.data || {}))
-
             // workflow_finishedイベントからデータを取得
             if (jsonData.event === 'workflow_finished') {
               const outputs = jsonData.data?.outputs
-              console.log('Workflow finished outputs:', outputs)
               if (outputs && outputs.result) {
                 fullText = outputs.result
               }
@@ -199,7 +180,6 @@ export async function POST(request: NextRequest) {
             // node_finishedイベントも確認（LLMノードの出力）
             if (jsonData.event === 'node_finished' && jsonData.data?.node_type === 'llm') {
               const outputs = jsonData.data?.outputs
-              console.log('LLM node outputs:', outputs)
               if (outputs && outputs.text) {
                 fullText = outputs.text
               }
@@ -210,9 +190,6 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-
-    console.log('Dify full text length:', fullText.length)
-    console.log('Dify full text preview:', fullText.substring(0, 500))
 
     // テキストからJSON部分を抽出
     let shiftData
@@ -227,21 +204,16 @@ export async function POST(request: NextRequest) {
         jsonText = jsonText.replace(/\/\*[\s\S]*?\*\//g, '') // ブロックコメント削除
         jsonText = jsonText.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '') // 制御文字削除
 
-        console.log('Sanitized JSON preview:', jsonText.substring(0, 500))
-
         shiftData = JSON.parse(jsonText)
-        console.log('Parsed shift data:', shiftData.shifts?.length || 0, 'shifts')
       } else {
         throw new Error('JSON data not found in response')
       }
     } catch (parseError) {
       console.error('JSON parse error:', parseError)
-      console.error('Full text:', fullText)
 
       return NextResponse.json({
         success: false,
-        error: { message: 'AIからの応答の解析に失敗しました', details: String(parseError) },
-        raw_result: fullText
+        error: { message: 'AIからの応答の解析に失敗しました' }
       }, { status: 500 })
     }
 
@@ -249,8 +221,7 @@ export async function POST(request: NextRequest) {
     if (!shiftData.shifts || !Array.isArray(shiftData.shifts)) {
       return NextResponse.json({
         success: false,
-        error: { message: 'シフトデータの形式が正しくありません' },
-        data: shiftData
+        error: { message: 'シフトデータの形式が正しくありません' }
       }, { status: 500 })
     }
 
@@ -258,7 +229,6 @@ export async function POST(request: NextRequest) {
     const validatedShifts = shiftData.shifts.filter((shift: any) => {
       // 必須フィールドチェック
       if (!shift.date || !shift.employee_id) {
-        console.warn('Invalid shift (missing required fields):', shift)
         return false
       }
 
@@ -272,14 +242,12 @@ export async function POST(request: NextRequest) {
         reconstructedDate.getMonth() !== month - 1 ||
         reconstructedDate.getDate() !== day
       ) {
-        console.warn('Invalid date (skipped):', shift.date)
         return false
       }
 
       // 従業員の存在チェック
       const employee = employees?.find((emp: Employee) => emp.id === shift.employee_id)
       if (!employee) {
-        console.warn('Employee not found (skipped):', shift.employee_id)
         return false
       }
 
@@ -290,21 +258,13 @@ export async function POST(request: NextRequest) {
       const shiftDayName = dayNames[dayOfWeek]
 
       if (employee.available_days && !employee.available_days.includes(shiftDayName)) {
-        console.warn(`Removed shift for ${employee.name} on unavailable day:`, shift.date, shiftDayName)
         return false
       }
 
       return true
     })
 
-    console.log('Validation result:', {
-      original: shiftData.shifts.length,
-      validated: validatedShifts.length,
-      removed: shiftData.shifts.length - validatedShifts.length
-    })
-
     // Dify成功後、既存シフトを削除
-    console.log('Deleting existing shifts for:', body.target_month)
     const { error: deleteError } = await supabase
       .from('shifts')
       .delete()
@@ -317,7 +277,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 新規シフトをデータベースに挿入
-    console.log('Inserting new shifts:', validatedShifts.length)
     const { error: insertError } = await supabase
       .from('shifts')
       .insert(validatedShifts)
@@ -326,34 +285,26 @@ export async function POST(request: NextRequest) {
       console.error('シフト挿入エラー:', insertError)
       return NextResponse.json({
         success: false,
-        error: { message: 'シフトの保存に失敗しました', details: insertError.message }
+        error: { message: 'シフトの保存に失敗しました' }
       }, { status: 500 })
     }
 
-    console.log('Shifts successfully saved to database')
-
     return NextResponse.json({
       success: true,
-      message: 'シフトを作成しました！',
       data: {
         shifts: validatedShifts,
         summary: {
           total_shifts: validatedShifts.length,
           target_month: body.target_month
         }
-      },
-      debug: {
-        target_month: body.target_month,
-        calendar_length: calendar.length,
-        employees_count: employees?.length || 0,
-        workplaces_count: workplaces?.length || 0
       }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'An unexpected error occurred'
     console.error('Error generating shift:', error)
     return NextResponse.json(
-      { success: false, error: { message: 'シフト生成中にエラーが発生しました', details: String(error) } },
+      { success: false, error: { message: 'シフト生成中にエラーが発生しました' } },
       { status: 500 }
     )
   }

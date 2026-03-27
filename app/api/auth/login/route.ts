@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 認証処理
-    const user = await authenticate({ user_id, password, remember_me })
+    const result = await authenticate({ user_id, password, remember_me })
 
-    if (!user) {
+    if (!result) {
       return NextResponse.json(
         { success: false, error: { message: 'ユーザーIDまたはパスワードが正しくありません' } },
         { status: 401 }
@@ -29,12 +29,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: user
+      data: {
+        user: result.user,
+        session_token: result.session_token
+      }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login error:', error)
     return NextResponse.json(
-      { success: false, error: { message: error.message || 'ログインに失敗しました' } },
+      { success: false, error: { message: 'ログインに失敗しました' } },
       { status: 500 }
     )
   }
