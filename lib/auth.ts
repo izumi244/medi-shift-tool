@@ -78,16 +78,19 @@ export async function verifySession(sessionToken: string) {
 
     if (error || !data || !data.session_token) return null
 
-    const isDeveloper = data.is_system_account && data.employee_number === 'admin123'
+    // DBのroleカラムを優先、なければis_system_accountから計算（フォールバック）
+    const resolvedRole = data.role
+      ? data.role
+      : data.is_system_account
+        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        : 'employee'
 
     return {
       id: data.id,
       user_id: data.employee_number || '',
       employee_number: data.employee_number || '',
       name: data.name,
-      role: data.is_system_account ?
-        (isDeveloper ? 'developer' : 'admin') :
-        'employee',
+      role: resolvedRole,
       password_changed: data.password_changed ?? false,
       created_at: data.created_at,
       last_login: data.last_login
@@ -144,7 +147,12 @@ export async function authenticate(credentials: LoginCredentials): Promise<{ use
 
     if (updateError) throw updateError
 
-    const isDeveloper = data.is_system_account && data.employee_number === 'admin123'
+    // DBのroleカラムを優先、なければis_system_accountから計算（フォールバック）
+    const resolvedRole = data.role
+      ? data.role
+      : data.is_system_account
+        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        : 'employee'
 
     // ユーザー情報とセッショントークンを返す
     return {
@@ -153,9 +161,7 @@ export async function authenticate(credentials: LoginCredentials): Promise<{ use
         user_id: data.employee_number || '',
         employee_number: data.employee_number || '',
         name: data.name,
-        role: data.is_system_account ?
-          (isDeveloper ? 'developer' : 'admin') :
-          'employee',
+        role: resolvedRole,
         password_changed: data.password_changed || false,
         created_at: data.created_at,
         last_login: data.last_login

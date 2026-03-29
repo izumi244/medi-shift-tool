@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X, Trash2 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ShiftPattern, Employee } from '@/types';
+import type { ShiftPattern, Employee, Workplace } from '@/types';
+import { REQUEST_STATUS, LEAVE_TYPES, LEAVE_TYPES_MASKED } from '@/lib/constants';
 
 // --- Component-Specific Types ---
 interface ShiftAssignment {
@@ -26,7 +27,7 @@ interface ShiftData {
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
   const { user } = useAuth();
-  const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift, deleteShift } = useShiftData();
+  const { employees, shiftPatterns, shifts, leaveRequests, workplaces, addShift, updateShift, deleteShift } = useShiftData();
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -36,19 +37,36 @@ const ShiftPage: React.FC = () => {
   // 従業員モードかどうか
   const isEmployee = user?.role === 'employee';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
+  const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string, dayOfWeek: string} | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const [editValues, setEditValues] = useState({
-    editType: 'pattern' as 'pattern' | 'custom' | 'rest',
+  const [editValues, setEditValues] = useState<{
+    editType: 'pattern' | 'custom' | 'rest';
+    am: string;
+    pm: string;
+    patternId: string;
+    customStartTime: string;
+    customEndTime: string;
+    restReason: string;
+  }>({
+    editType: 'pattern',
     am: '',
     pm: '',
     patternId: '',
     customStartTime: '',
     customEndTime: '',
-    restReason: '休み'
+    restReason: LEAVE_TYPES_MASKED
   });
+
+  // 配置場所ID→名前のマッピング（IDベースの名前解決用）
+  const workplaceIdToName = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    workplaces.forEach((wp: Workplace) => {
+      map[wp.id] = wp.name;
+    });
+    return map;
+  }, [workplaces]);
 
   // shiftsデータをShiftData形式に変換（承認済み希望休を含む）
   const shiftData = React.useMemo(() => {
@@ -68,9 +86,17 @@ const ShiftPage: React.FC = () => {
           data[shift.employee_id] = {};
         }
 
+        // IDがあればIDから名前解決、なければ従来のam_workplace/pm_workplaceを使用
+        const amName = shift.am_workplace_id
+          ? (workplaceIdToName[shift.am_workplace_id] || shift.am_workplace || undefined)
+          : (shift.am_workplace || undefined);
+        const pmName = shift.pm_workplace_id
+          ? (workplaceIdToName[shift.pm_workplace_id] || shift.pm_workplace || undefined)
+          : (shift.pm_workplace || undefined);
+
         data[shift.employee_id][day] = {
-          am: shift.am_workplace || undefined,
-          pm: shift.pm_workplace || undefined,
+          am: amName,
+          pm: pmName,
           patternId: shift.shift_pattern_id || undefined,
           customStartTime: shift.custom_start_time || undefined,
           customEndTime: shift.custom_end_time || undefined,
@@ -82,7 +108,7 @@ const ShiftPage: React.FC = () => {
 
     // 承認済み希望休を追加（既存シフトがない場合のみ）
     leaveRequests.forEach(leave => {
-      if (leave.status === '承認') {
+      if (leave.status === REQUEST_STATUS.APPROVED) {
         const leaveDate = new Date(leave.date);
 
         // 現在表示中の月の承認済み希望休のみ含める
@@ -96,7 +122,7 @@ const ShiftPage: React.FC = () => {
           // 既存のシフトがない場合のみ希望休を表示
           if (!data[leave.employee_id][day]) {
             // 出勤可能申請は休みではない
-            if (leave.leave_type === '出勤可能') {
+            if (leave.leave_type === LEAVE_TYPES.AVAILABLE) {
               data[leave.employee_id][day] = {
                 isRest: false,
                 restReason: leave.leave_type // 表示用に保持
@@ -114,7 +140,7 @@ const ShiftPage: React.FC = () => {
     });
 
     return data;
-  }, [shifts, leaveRequests, currentDate]);
+  }, [shifts, leaveRequests, currentDate, workplaceIdToName]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -159,7 +185,9 @@ const ShiftPage: React.FC = () => {
     // --- End Validation ---
     
     const shift = shiftData[employeeId]?.[day];
-    setEditingCell({employeeId, day, employeeName});
+    const clickedDate = new Date(year, month, day);
+    const dayOfWeekStr = clickedDate.toLocaleDateString('ja-JP', { weekday: 'short' }) as string;
+    setEditingCell({employeeId, day, employeeName, dayOfWeek: dayOfWeekStr});
 
     let editType: 'pattern' | 'custom' | 'rest' = 'pattern';
     if (shift?.isRest) editType = 'rest';
@@ -172,7 +200,7 @@ const ShiftPage: React.FC = () => {
       patternId: shift?.patternId || '',
       customStartTime: shift?.customStartTime || '',
       customEndTime: shift?.customEndTime || '',
-      restReason: shift?.restReason || '休み'
+      restReason: shift?.restReason || LEAVE_TYPES_MASKED
     });
     setIsEditModalOpen(true);
   };
@@ -276,7 +304,7 @@ const ShiftPage: React.FC = () => {
   };
 
   const getShiftTimeLabel = (shift: ShiftAssignment): string => {
-    if (shift.isRest) return shift.restReason || '休み';
+    if (shift.isRest) return shift.restReason || LEAVE_TYPES_MASKED;
     if (shift.patternId) {
       const pattern = shiftPatterns.find(p => p.id === shift.patternId);
       return pattern ? `${formatTime(pattern.start_time)}~${formatTime(pattern.end_time)}` : '不明';
@@ -291,7 +319,7 @@ const ShiftPage: React.FC = () => {
     const shift = shiftData[employee.id]?.[day];
 
     // 出勤可能申請がある場合は背景色を変更
-    const isAvailableToWork = shift?.restReason === '出勤可能' && !shift.isRest;
+    const isAvailableToWork = shift?.restReason === LEAVE_TYPES.AVAILABLE && !shift.isRest;
     const baseCellClass = `border-r border-gray-200 h-20 p-0.5 align-top ${dayInfo.isSunday ? 'bg-pink-50' : dayInfo.isWednesday ? 'bg-green-50' : ''} ${editMode ? 'cursor-pointer hover:bg-yellow-100' : ''}`;
     const cellClass = isAvailableToWork ? `${baseCellClass} bg-cyan-50` : baseCellClass;
 
@@ -390,11 +418,21 @@ const ShiftPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午前配置</label>
-                      <input type="text" value={editValues.am} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: D, 処" />
+                      <select value={workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek).some(wp => wp.name === editValues.am) ? editValues.am : ''} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                        <option value="">選択なし</option>
+                        {workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek).map(wp => (
+                          <option key={wp.id} value={wp.name}>{wp.name}</option>
+                        ))}
+                      </select>
                   </div>
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午後配置</label>
-                      <input type="text" value={editValues.pm} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: 処, 健診" />
+                      <select value={workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek).some(wp => wp.name === editValues.pm) ? editValues.pm : ''} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                        <option value="">選択なし</option>
+                        {workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek).map(wp => (
+                          <option key={wp.id} value={wp.name}>{wp.name}</option>
+                        ))}
+                      </select>
                   </div>
               </div>
 
@@ -436,9 +474,9 @@ const ShiftPage: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">理由</label>
                   <select value={editValues.restReason} onChange={(e) => setEditValues(p => ({...p, restReason: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
-                    <option>休み</option>
-                    <option>有休</option>
-                    <option>希望休</option>
+                    <option value={LEAVE_TYPES_MASKED}>{LEAVE_TYPES_MASKED}</option>
+                    <option value={LEAVE_TYPES.PAID_LEAVE}>{LEAVE_TYPES.PAID_LEAVE}</option>
+                    <option value={LEAVE_TYPES.HOPE_REST}>{LEAVE_TYPES.HOPE_REST}</option>
                   </select>
                 </div>
               )}

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import type { Employee, Workplace, ShiftPattern, LeaveRequest, AIConstraintGuideline } from '@/types'
 import { authenticateRequest, isAdmin } from '@/lib/api-auth'
+import { REQUEST_STATUS } from '@/lib/constants'
 
 // カレンダー生成関数（指定月の全日付を生成）
 function generateMonthCalendar(targetMonth: string) {
@@ -60,6 +61,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // YYYY-MM形式のバリデーション
+    const monthMatch = body.target_month.match(/^(\d{4})-(\d{2})$/)
+    if (!monthMatch) {
+      return NextResponse.json(
+        { success: false, error: { message: '対象月の形式が不正です（YYYY-MM）' } },
+        { status: 400 }
+      )
+    }
+    const [, yearStr, monthStr] = monthMatch
+    const yearNum = parseInt(yearStr, 10)
+    const monthNum = parseInt(monthStr, 10)
+    if (monthNum < 1 || monthNum > 12 || yearNum < 2000 || yearNum > 2100) {
+      return NextResponse.json(
+        { success: false, error: { message: '対象月の値が範囲外です' } },
+        { status: 400 }
+      )
+    }
+
     // Dify APIキーとURLを環境変数から取得
     const difyApiKey = process.env.DIFY_API_KEY
     const difyApiUrl = process.env.DIFY_API_URL
@@ -88,7 +107,7 @@ export async function POST(request: NextRequest) {
       supabase.from('employees').select('*').eq('is_active', true).order('order_index', { ascending: true }),
       supabase.from('workplaces').select('*').eq('is_active', true).order('order_index', { ascending: true }),
       supabase.from('shift_patterns').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-      supabase.from('leave_requests').select('*').gte('date', startDate).lte('date', lastDate).eq('status', '承認'),
+      supabase.from('leave_requests').select('*').gte('date', startDate).lte('date', lastDate).eq('status', REQUEST_STATUS.APPROVED),
       supabase.from('ai_constraint_guidelines').select('*').eq('is_active', true)
     ])
 
@@ -374,6 +393,17 @@ export async function POST(request: NextRequest) {
       (shiftPatterns as ShiftPattern[]).map((p: ShiftPattern) => p.id)
     )
 
+    // 配置場所名→IDのマッピングを作成（名前ベースの出力をID参照に変換）
+    const workplaceNameToId: Record<string, string> = {}
+    if (workplaces) {
+      for (const w of workplaces as Workplace[]) {
+        // 同名の配置場所が複数ある場合は最初のものを使用
+        if (!workplaceNameToId[w.name]) {
+          workplaceNameToId[w.name] = w.id
+        }
+      }
+    }
+
     // DBカラムにマッピング（AIの出力から必要なフィールドのみ抽出）
     const mappedShifts = validatedShifts.map((shift: Record<string, unknown>) => {
       // shift_pattern_idが無効な場合はnullにする（FK違反防止）
@@ -381,12 +411,20 @@ export async function POST(request: NextRequest) {
         ? shift.shift_pattern_id
         : null
 
+      // 配置場所名からIDを解決（フォールバック: 名前のみ保存）
+      const amName = (shift.am_workplace as string) || null
+      const pmName = (shift.pm_workplace as string) || null
+      const amWorkplaceId = amName ? (workplaceNameToId[amName] || null) : null
+      const pmWorkplaceId = pmName ? (workplaceNameToId[pmName] || null) : null
+
       return {
         employee_id: shift.employee_id,
         date: shift.date,
         shift_pattern_id: patternId,
-        am_workplace: shift.am_workplace || null,
-        pm_workplace: shift.pm_workplace || null,
+        am_workplace: amName,
+        pm_workplace: pmName,
+        am_workplace_id: amWorkplaceId,
+        pm_workplace_id: pmWorkplaceId,
         custom_start_time: shift.custom_start_time || null,
         custom_end_time: shift.custom_end_time || null,
         is_rest: shift.is_rest || false,
@@ -403,7 +441,22 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Dify成功後、既存シフトを削除
+    // Dify成功後、既存シフトをバックアップしてから削除→挿入
+    // Step 1: 既存シフトデータを取得してバックアップ
+    const { data: backupShifts, error: backupError } = await supabase
+      .from('shifts')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', lastDate)
+
+    if (backupError) {
+      console.error('既存シフトバックアップ取得エラー:', backupError)
+      // バックアップ取得失敗でも続行（新規月の場合はデータがないため）
+    } else if (backupShifts && backupShifts.length > 0) {
+      console.log(`既存シフトバックアップ取得完了: ${backupShifts.length}件`)
+    }
+
+    // Step 2: 既存シフトを削除
     const { error: deleteError } = await supabase
       .from('shifts')
       .delete()
@@ -415,13 +468,44 @@ export async function POST(request: NextRequest) {
       // 削除エラーでも続行（新規月の場合は削除対象がないため）
     }
 
-    // 新規シフトをデータベースに挿入
+    // Step 3: 新規シフトをデータベースに挿入
     const { error: insertError } = await supabase
       .from('shifts')
       .insert(mappedShifts)
 
+    // Step 4: INSERT失敗時はバックアップデータで復元を試みる
     if (insertError) {
       console.error('シフト挿入エラー:', insertError)
+
+      if (backupShifts && backupShifts.length > 0) {
+        console.error('バックアップデータからの復元を開始します...')
+        const { error: restoreError } = await supabase
+          .from('shifts')
+          .insert(backupShifts)
+
+        if (restoreError) {
+          // Step 5: 復元も失敗した場合
+          console.error('バックアップ復元エラー（データ消失の可能性）:', restoreError)
+          return NextResponse.json({
+            success: false,
+            error: {
+              message: 'シフトの保存に失敗し、既存データの復元にも失敗しました。管理者に連絡してください。',
+              details: {
+                insertError: insertError.message,
+                restoreError: restoreError.message,
+                backupCount: backupShifts.length,
+              }
+            }
+          }, { status: 500 })
+        }
+
+        console.error(`バックアップ復元完了: ${backupShifts.length}件を復元しました`)
+        return NextResponse.json({
+          success: false,
+          error: { message: 'シフトの保存に失敗しましたが、既存データを復元しました。再度お試しください。' }
+        }, { status: 500 })
+      }
+
       return NextResponse.json({
         success: false,
         error: { message: 'シフトの保存に失敗しました' }

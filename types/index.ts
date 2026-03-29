@@ -11,7 +11,7 @@ export type JobType = '看護師' | '臨床検査技師' | '看護助手'
 export type FacilityType = 'クリニック棟' | '健診棟'
 export type TimeSlot = 'AM' | 'PM'
 export type ShiftType = '早番' | '遅番' | 'カスタム'
-export type LeaveType = '希望休' | '有休' | '忌引' | '病欠' | 'その他' | '出勤可能'
+export type LeaveType = '希望休' | '有休' | '忌引' | '病欠' | 'その他' | '出勤可能' | '休み'
 export type RequestStatus = '申請中' | '承認' | '却下'
 
 // ==================== データ型定義 ====================
@@ -24,6 +24,7 @@ export interface ShiftPattern {
   end_time: string
   break_minutes: number
   color: string // 表示用の色 (例: '#e0e7ff')
+  is_active?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -52,6 +53,7 @@ export interface Employee {
   session_token?: string
   last_login?: string
   is_system_account?: boolean
+  role?: 'admin' | 'employee' | 'developer' // DBカラム（存在しない場合はis_system_accountから計算）
   created_at: string
   updated_at: string
 }
@@ -88,9 +90,13 @@ export interface Shift {
   // シフトパターンID
   shift_pattern_id?: string
 
-  // 配置場所（名前で保存）
+  // 配置場所（名前で保存 - レガシー互換）
   am_workplace?: string
   pm_workplace?: string
+
+  // 配置場所ID（workplacesテーブル参照 - 新方式）
+  am_workplace_id?: string
+  pm_workplace_id?: string
 
   // カスタム時間
   custom_start_time?: string

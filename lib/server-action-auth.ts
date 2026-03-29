@@ -3,6 +3,7 @@
 
 import { cookies } from 'next/headers'
 import { verifySession } from '@/lib/auth'
+import type { UserRole } from '@/types/auth'
 
 /**
  * Server Actionのユーザー情報型
@@ -12,7 +13,7 @@ export interface AuthUser {
   user_id: string
   employee_number: string
   name: string
-  role: string
+  role: UserRole
   password_changed: boolean
   created_at: string
   last_login?: string
@@ -22,7 +23,7 @@ export interface AuthUser {
  * ユーザーが管理者権限を持つかチェックする
  * admin または developer ロールを管理者とみなす
  */
-export function isAdmin(user: { role: string }): boolean {
+export function isAdmin(user: { role: UserRole }): boolean {
   return user.role === 'admin' || user.role === 'developer'
 }
 

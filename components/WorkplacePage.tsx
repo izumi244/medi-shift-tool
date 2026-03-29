@@ -16,7 +16,7 @@ import {
 import { useShiftData } from '@/contexts/ShiftDataContext'
 import type { Workplace, FacilityType, TimeSlot, DayOfWeek } from '@/types'
 import { facilityColors } from '@/lib/colors'
-import { DAY_LABELS } from '@/lib/constants'
+import { DAY_LABELS, FACILITY_TYPES } from '@/lib/constants'
 
 // 施設ごとのUI設定
 const facilityConfig: Record<FacilityType, {
@@ -27,7 +27,7 @@ const facilityConfig: Record<FacilityType, {
   badgeText: string
   editButtonClass: string
 }> = {
-  'クリニック棟': {
+  [FACILITY_TYPES.CLINIC]: {
     icon: '🏢',
     label: 'クリニック棟',
     addButtonClass: 'bg-blue-500 hover:bg-blue-600',
@@ -35,7 +35,7 @@ const facilityConfig: Record<FacilityType, {
     badgeText: 'text-blue-700',
     editButtonClass: 'text-blue-600 hover:bg-blue-100',
   },
-  '健診棟': {
+  [FACILITY_TYPES.HEALTH_CHECK]: {
     icon: '🔬',
     label: '健診棟',
     addButtonClass: 'bg-green-500 hover:bg-green-600',
@@ -155,7 +155,7 @@ export default function WorkplacePage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkplace, setEditingWorkplace] = useState<Workplace | null>(null)
-  const [selectedFacility, setSelectedFacility] = useState<FacilityType>('クリニック棟')
+  const [selectedFacility, setSelectedFacility] = useState<FacilityType>(FACILITY_TYPES.CLINIC)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot>('AM')
   
   // 曜日選択の状態を追加
@@ -165,7 +165,7 @@ export default function WorkplacePage() {
   // フォーム状態（人数フィールドを追加）
   const [formData, setFormData] = useState({
     name: '',
-    facility: 'クリニック棟' as FacilityType,
+    facility: FACILITY_TYPES.CLINIC as FacilityType,
     time_slot: 'AM' as TimeSlot,
     day_of_week: '月' as DayOfWeek,
     required_count: 1,
@@ -323,10 +323,10 @@ export default function WorkplacePage() {
 
           {/* クリニック棟 AM */}
           <FacilitySection
-            facility="クリニック棟"
+            facility={FACILITY_TYPES.CLINIC}
             timeSlot="AM"
-            filteredWorkplaces={getFilteredWorkplaces('クリニック棟', 'AM', selectedDayOfWeek)}
-            onAdd={() => openModal(undefined, 'クリニック棟', 'AM')}
+            filteredWorkplaces={getFilteredWorkplaces(FACILITY_TYPES.CLINIC, 'AM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, FACILITY_TYPES.CLINIC, 'AM')}
             onEdit={(workplace) => openModal(workplace)}
             onDelete={handleDeleteWorkplace}
             onChangeOrder={changeOrder}
@@ -334,10 +334,10 @@ export default function WorkplacePage() {
 
           {/* 健診棟 AM */}
           <FacilitySection
-            facility="健診棟"
+            facility={FACILITY_TYPES.HEALTH_CHECK}
             timeSlot="AM"
-            filteredWorkplaces={getFilteredWorkplaces('健診棟', 'AM', selectedDayOfWeek)}
-            onAdd={() => openModal(undefined, '健診棟', 'AM')}
+            filteredWorkplaces={getFilteredWorkplaces(FACILITY_TYPES.HEALTH_CHECK, 'AM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, FACILITY_TYPES.HEALTH_CHECK, 'AM')}
             onEdit={(workplace) => openModal(workplace)}
             onDelete={handleDeleteWorkplace}
             onChangeOrder={changeOrder}
@@ -354,10 +354,10 @@ export default function WorkplacePage() {
 
           {/* クリニック棟 PM */}
           <FacilitySection
-            facility="クリニック棟"
+            facility={FACILITY_TYPES.CLINIC}
             timeSlot="PM"
-            filteredWorkplaces={getFilteredWorkplaces('クリニック棟', 'PM', selectedDayOfWeek)}
-            onAdd={() => openModal(undefined, 'クリニック棟', 'PM')}
+            filteredWorkplaces={getFilteredWorkplaces(FACILITY_TYPES.CLINIC, 'PM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, FACILITY_TYPES.CLINIC, 'PM')}
             onEdit={(workplace) => openModal(workplace)}
             onDelete={handleDeleteWorkplace}
             onChangeOrder={changeOrder}
@@ -365,10 +365,10 @@ export default function WorkplacePage() {
 
           {/* 健診棟 PM */}
           <FacilitySection
-            facility="健診棟"
+            facility={FACILITY_TYPES.HEALTH_CHECK}
             timeSlot="PM"
-            filteredWorkplaces={getFilteredWorkplaces('健診棟', 'PM', selectedDayOfWeek)}
-            onAdd={() => openModal(undefined, '健診棟', 'PM')}
+            filteredWorkplaces={getFilteredWorkplaces(FACILITY_TYPES.HEALTH_CHECK, 'PM', selectedDayOfWeek)}
+            onAdd={() => openModal(undefined, FACILITY_TYPES.HEALTH_CHECK, 'PM')}
             onEdit={(workplace) => openModal(workplace)}
             onDelete={handleDeleteWorkplace}
             onChangeOrder={changeOrder}
@@ -416,8 +416,8 @@ export default function WorkplacePage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, facility: e.target.value as FacilityType }))}
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors bg-white text-gray-900"
                   >
-                    <option value="クリニック棟" className="bg-white text-gray-900 py-2">🏢 クリニック棟</option>
-                    <option value="健診棟" className="bg-white text-gray-900 py-2">🔬 健診棟</option>
+                    <option value={FACILITY_TYPES.CLINIC} className="bg-white text-gray-900 py-2">🏢 クリニック棟</option>
+                    <option value={FACILITY_TYPES.HEALTH_CHECK} className="bg-white text-gray-900 py-2">🔬 健診棟</option>
                   </select>
                 </div>
 

@@ -4,7 +4,8 @@ import React, { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useShiftData } from '@/contexts/ShiftDataContext'
-import type { Employee } from '@/types'
+import type { Employee, Workplace } from '@/types'
+import { REQUEST_STATUS, LEAVE_TYPES, LEAVE_TYPES_MASKED } from '@/lib/constants'
 
 interface ShiftAssignment {
   am?: string
@@ -24,7 +25,7 @@ interface ShiftData {
 
 const EmployeeShiftView: React.FC = () => {
   const { user } = useAuth()
-  const { employees, shiftPatterns, shifts, leaveRequests, loading } = useShiftData()
+  const { employees, shiftPatterns, shifts, leaveRequests, workplaces, loading } = useShiftData()
 
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date()
@@ -63,6 +64,15 @@ const EmployeeShiftView: React.FC = () => {
     return daysArray
   }, [year, month, daysInMonth])
 
+  // 配置場所ID→名前のマッピング（IDベースの名前解決用）
+  const workplaceIdToName = useMemo(() => {
+    const map: Record<string, string> = {}
+    workplaces.forEach((wp: Workplace) => {
+      map[wp.id] = wp.name
+    })
+    return map
+  }, [workplaces])
+
   // Build shift data the same way as ShiftPage
   const shiftData: ShiftData = useMemo(() => {
     const data: ShiftData = {}
@@ -72,9 +82,18 @@ const EmployeeShiftView: React.FC = () => {
       if (shiftDate.getFullYear() === year && shiftDate.getMonth() === month) {
         const day = shiftDate.getDate()
         if (!data[shift.employee_id]) data[shift.employee_id] = {}
+
+        // IDがあればIDから名前解決、なければ従来のam_workplace/pm_workplaceを使用
+        const amName = shift.am_workplace_id
+          ? (workplaceIdToName[shift.am_workplace_id] || shift.am_workplace || undefined)
+          : (shift.am_workplace || undefined)
+        const pmName = shift.pm_workplace_id
+          ? (workplaceIdToName[shift.pm_workplace_id] || shift.pm_workplace || undefined)
+          : (shift.pm_workplace || undefined)
+
         data[shift.employee_id][day] = {
-          am: shift.am_workplace || undefined,
-          pm: shift.pm_workplace || undefined,
+          am: amName,
+          pm: pmName,
           patternId: shift.shift_pattern_id || undefined,
           customStartTime: shift.custom_start_time || undefined,
           customEndTime: shift.custom_end_time || undefined,
@@ -85,13 +104,13 @@ const EmployeeShiftView: React.FC = () => {
     })
 
     leaveRequests.forEach(leave => {
-      if (leave.status === '承認') {
+      if (leave.status === REQUEST_STATUS.APPROVED) {
         const leaveDate = new Date(leave.date)
         if (leaveDate.getFullYear() === year && leaveDate.getMonth() === month) {
           const day = leaveDate.getDate()
           if (!data[leave.employee_id]) data[leave.employee_id] = {}
           if (!data[leave.employee_id][day]) {
-            if (leave.leave_type === '出勤可能') {
+            if (leave.leave_type === LEAVE_TYPES.AVAILABLE) {
               data[leave.employee_id][day] = { isRest: false, restReason: leave.leave_type }
             } else {
               data[leave.employee_id][day] = { isRest: true, restReason: leave.leave_type }
@@ -102,12 +121,12 @@ const EmployeeShiftView: React.FC = () => {
     })
 
     return data
-  }, [shifts, leaveRequests, year, month])
+  }, [shifts, leaveRequests, year, month, workplaceIdToName])
 
   const formatTime = (time: string): string => time.substring(0, 5)
 
   const getShiftTimeLabel = (shift: ShiftAssignment): string => {
-    if (shift.isRest) return shift.restReason || '休み'
+    if (shift.isRest) return shift.restReason || LEAVE_TYPES_MASKED
     if (shift.patternId) {
       const pattern = shiftPatterns.find(p => p.id === shift.patternId)
       return pattern ? `${formatTime(pattern.start_time)}~${formatTime(pattern.end_time)}` : '不明'
@@ -145,11 +164,11 @@ const EmployeeShiftView: React.FC = () => {
                   const shift = shiftData[employee.id]?.[day]
                   if (!shift) return <div className="h-8" />
 
-                  const isAvailableToWork = shift.restReason === '出勤可能' && !shift.isRest
+                  const isAvailableToWork = shift.restReason === LEAVE_TYPES.AVAILABLE && !shift.isRest
 
                   if (shift.isRest) {
                     // For other employees, hide the rest_reason
-                    const restLabel = isMe ? (shift.restReason || '休み') : '休み'
+                    const restLabel = isMe ? (shift.restReason || LEAVE_TYPES_MASKED) : LEAVE_TYPES_MASKED
                     return (
                       <div className="text-[9px] text-red-500 font-medium bg-red-50 rounded px-0.5 py-1 mt-0.5 leading-tight">
                         {restLabel}
@@ -221,7 +240,7 @@ const EmployeeShiftView: React.FC = () => {
                   </td>
                   {days.map(({ day, isSunday, isWednesday, isSaturday }) => {
                     const shift = shiftData[employee.id]?.[day]
-                    const isAvailableToWork = shift?.restReason === '出勤可能' && !shift.isRest
+                    const isAvailableToWork = shift?.restReason === LEAVE_TYPES.AVAILABLE && !shift.isRest
                     const bgClass = isMe
                       ? (isSunday ? 'bg-indigo-50' : isWednesday ? 'bg-indigo-50/50' : 'bg-indigo-50/30')
                       : (isSunday ? 'bg-pink-50' : isSaturday ? 'bg-blue-50/30' : isWednesday ? 'bg-green-50' : '')
@@ -239,7 +258,7 @@ const EmployeeShiftView: React.FC = () => {
                         {shift.isRest ? (
                           <div className="h-full flex items-center justify-center text-center text-red-600 font-medium text-xs">
                             {/* hide rest_reason for other employees */}
-                            {isMe ? timeLabel : '休み'}
+                            {isMe ? timeLabel : LEAVE_TYPES_MASKED}
                           </div>
                         ) : isAvailableToWork ? (
                           <div className="h-full flex items-center justify-center text-center text-cyan-600 font-medium text-xs">

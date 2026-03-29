@@ -60,7 +60,8 @@ export const leaveTypeColors: Record<LeaveType, string> = {
   '忌引': 'bg-gray-100 text-gray-800',
   '病欠': 'bg-red-100 text-red-800',
   'その他': 'bg-purple-100 text-purple-800',
-  '出勤可能': 'bg-cyan-100 text-cyan-800'
+  '出勤可能': 'bg-cyan-100 text-cyan-800',
+  '休み': 'bg-gray-50 text-gray-500'
 }
 
 /** シフトパターン用カラーオプション */

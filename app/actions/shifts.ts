@@ -85,6 +85,30 @@ export async function createShift(
 
     const supabase = createServerSupabaseClient()
 
+    // 配置場所IDの解決: IDが渡されていればそのまま使用、なければ名前からID変換を試みる
+    let amWorkplaceId = body.am_workplace_id || null
+    let pmWorkplaceId = body.pm_workplace_id || null
+
+    // IDがなく名前がある場合、workplacesテーブルから検索（フォールバック）
+    if (!amWorkplaceId && body.am_workplace) {
+      const { data: amWps } = await supabase
+        .from('workplaces')
+        .select('id')
+        .eq('name', body.am_workplace)
+        .eq('is_active', true)
+        .limit(1)
+      if (amWps && amWps.length > 0) amWorkplaceId = amWps[0].id
+    }
+    if (!pmWorkplaceId && body.pm_workplace) {
+      const { data: pmWps } = await supabase
+        .from('workplaces')
+        .select('id')
+        .eq('name', body.pm_workplace)
+        .eq('is_active', true)
+        .limit(1)
+      if (pmWps && pmWps.length > 0) pmWorkplaceId = pmWps[0].id
+    }
+
     const { data, error } = await supabase
       .from('shifts')
       .insert([
@@ -94,6 +118,8 @@ export async function createShift(
           shift_pattern_id: body.shift_pattern_id,
           am_workplace: body.am_workplace,
           pm_workplace: body.pm_workplace,
+          am_workplace_id: amWorkplaceId,
+          pm_workplace_id: pmWorkplaceId,
           custom_start_time: body.custom_start_time,
           custom_end_time: body.custom_end_time,
           is_rest: body.is_rest || false,

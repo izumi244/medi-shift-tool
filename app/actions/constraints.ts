@@ -5,7 +5,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { AIConstraintGuideline } from '@/types'
-import { requireAdmin } from '@/lib/server-action-auth'
+import { getAuthUser, requireAdmin } from '@/lib/server-action-auth'
 
 // 共通レスポンス型
 type ActionResponse<T = unknown> = {
@@ -17,9 +17,9 @@ type ActionResponse<T = unknown> = {
 // GET: 全AI制約ガイドラインの取得
 export async function getConstraints(): Promise<ActionResponse<AIConstraintGuideline[]>> {
   try {
-    const user = await requireAdmin()
+    const user = await getAuthUser()
     if (!user) {
-      return { success: false, error: { message: '認証が必要です。管理者権限が必要です' } }
+      return { success: false, error: { message: '認証が必要です' } }
     }
 
     const supabase = createServerSupabaseClient()

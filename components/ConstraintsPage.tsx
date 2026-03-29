@@ -64,7 +64,12 @@ const ConstraintsPage: React.FC = () => {
   // 制約を削除
   const handleDeleteConstraint = async (id: string) => {
     if (confirm('この制約条件を削除しますか？')) {
-      await deleteConstraintFromContext(id);
+      try {
+        await deleteConstraintFromContext(id);
+      } catch (error) {
+        console.error('制約条件の削除に失敗:', error);
+        alert('制約条件の削除に失敗しました');
+      }
     }
   };
 

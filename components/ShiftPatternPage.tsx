@@ -103,7 +103,7 @@ const ShiftPatternPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {shiftPatterns.map(pattern => (
+        {shiftPatterns.filter(p => p.is_active).map(pattern => (
           <div key={pattern.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow flex flex-col" style={{ borderLeft: `5px solid ${pattern.color}` }}>
             <div className="p-6 flex-grow">
               <div className="flex justify-between items-start">

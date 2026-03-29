@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useShiftData } from '@/contexts/ShiftDataContext'
 import type { LeaveRequest, LeaveType, RequestStatus } from '@/types'
 import { statusColors, leaveTypeColors } from '@/lib/colors'
+import { REQUEST_STATUS, LEAVE_TYPES } from '@/lib/constants'
 
 const EmployeeLeaveRequest: React.FC = () => {
   const { user } = useAuth()
@@ -31,7 +32,7 @@ const EmployeeLeaveRequest: React.FC = () => {
 
   // Form state
   const [formDates, setFormDates] = useState<string[]>([])
-  const [formLeaveType, setFormLeaveType] = useState<LeaveType>('希望休')
+  const [formLeaveType, setFormLeaveType] = useState<LeaveType>(LEAVE_TYPES.HOPE_REST)
   const [formReason, setFormReason] = useState('')
 
   // Current employee ID
@@ -50,9 +51,9 @@ const EmployeeLeaveRequest: React.FC = () => {
   const stats = useMemo(() => {
     const myAll = leaveRequests.filter(l => l.employee_id === currentEmployeeId)
     return {
-      pending: myAll.filter(l => l.status === '申請中').length,
-      approved: myAll.filter(l => l.status === '承認').length,
-      rejected: myAll.filter(l => l.status === '却下').length,
+      pending: myAll.filter(l => l.status === REQUEST_STATUS.PENDING).length,
+      approved: myAll.filter(l => l.status === REQUEST_STATUS.APPROVED).length,
+      rejected: myAll.filter(l => l.status === REQUEST_STATUS.REJECTED).length,
       thisMonth: myLeaveRequests.length,
     }
   }, [leaveRequests, currentEmployeeId, myLeaveRequests])
@@ -95,7 +96,7 @@ const EmployeeLeaveRequest: React.FC = () => {
 
   const openModal = () => {
     setFormDates([])
-    setFormLeaveType('希望休')
+    setFormLeaveType(LEAVE_TYPES.HOPE_REST)
     setFormReason('')
     setIsModalOpen(true)
   }
@@ -115,7 +116,7 @@ const EmployeeLeaveRequest: React.FC = () => {
           date,
           leave_type: formLeaveType,
           reason: formReason || undefined,
-          status: '申請中' as RequestStatus,
+          status: REQUEST_STATUS.PENDING as RequestStatus,
         })
       }
       closeModal()
@@ -140,9 +141,9 @@ const EmployeeLeaveRequest: React.FC = () => {
 
   const getStatusIcon = (status: RequestStatus) => {
     switch (status) {
-      case '申請中': return <Clock className="w-4 h-4 text-yellow-600" />
-      case '承認': return <CheckCircle2 className="w-4 h-4 text-green-600" />
-      case '却下': return <XCircle className="w-4 h-4 text-red-600" />
+      case REQUEST_STATUS.PENDING: return <Clock className="w-4 h-4 text-yellow-600" />
+      case REQUEST_STATUS.APPROVED: return <CheckCircle2 className="w-4 h-4 text-green-600" />
+      case REQUEST_STATUS.REJECTED: return <XCircle className="w-4 h-4 text-red-600" />
     }
   }
 
@@ -252,7 +253,7 @@ const EmployeeLeaveRequest: React.FC = () => {
                 </div>
                 {leave && (
                   <div className={`text-[9px] px-1 py-0.5 rounded ${statusColors[leave.status].bg} ${statusColors[leave.status].text} font-medium leading-tight`}>
-                    {leave.leave_type === '出勤可能' ? '出勤可' : leave.leave_type}
+                    {leave.leave_type === LEAVE_TYPES.AVAILABLE ? '出勤可' : leave.leave_type}
                     <div className="text-[8px] opacity-75">{leave.status}</div>
                   </div>
                 )}
@@ -299,7 +300,7 @@ const EmployeeLeaveRequest: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  {leave.status === '申請中' && (
+                  {leave.status === REQUEST_STATUS.PENDING && (
                     <button
                       onClick={() => handleDelete(leave.id)}
                       className="ml-2 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
@@ -334,7 +335,7 @@ const EmployeeLeaveRequest: React.FC = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">種類</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['希望休', '有休', '忌引', '病欠', 'その他'] as LeaveType[]).map(type => (
+                  {([LEAVE_TYPES.HOPE_REST, LEAVE_TYPES.PAID_LEAVE, LEAVE_TYPES.FUNERAL, LEAVE_TYPES.SICK_LEAVE, LEAVE_TYPES.OTHER] as LeaveType[]).map(type => (
                     <button
                       key={type}
                       type="button"
@@ -523,7 +524,7 @@ const EmployeeLeaveRequest: React.FC = () => {
                 </p>
               </div>
 
-              {selectedLeave.status === '申請中' && (
+              {selectedLeave.status === REQUEST_STATUS.PENDING && (
                 <div className="pt-3 border-t border-gray-200">
                   <button
                     onClick={() => handleDelete(selectedLeave.id)}

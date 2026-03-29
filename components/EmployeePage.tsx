@@ -22,7 +22,7 @@ import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
 import type { Employee, EmploymentType, JobType, EmployeeAccountInfo } from '@/types';
 import { employmentTypeColors } from '@/lib/colors';
-import { WORKDAYS, JOB_TYPE_ICONS } from '@/lib/constants';
+import { WORKDAYS, JOB_TYPE_ICONS, EMPLOYMENT_TYPES, JOB_TYPES, FACILITY_TYPES } from '@/lib/constants';
 
 type EmployeeFormData = {
   name: string;
@@ -64,8 +64,8 @@ const EmployeePage: React.FC = () => {
 
   const getInitialFormData = useCallback((): EmployeeFormData => ({
     name: '',
-    employment_type: '常勤' as EmploymentType,
-    job_type: '看護師' as JobType,
+    employment_type: EMPLOYMENT_TYPES.FULL_TIME as EmploymentType,
+    job_type: JOB_TYPES.NURSE as JobType,
     available_days: [],
     assignable_workplaces_by_day: {},
     assignable_shift_pattern_ids: [],
@@ -97,7 +97,7 @@ const EmployeePage: React.FC = () => {
 
   const getAvailableFacilitiesForDay = (day: string) => {
     if (day === '水') {
-      return facilityOptions.filter(f => f.category === '健診棟');
+      return facilityOptions.filter(f => f.category === FACILITY_TYPES.HEALTH_CHECK);
     }
     return facilityOptions;
   };
@@ -339,17 +339,17 @@ const EmployeePage: React.FC = () => {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">雇用形態 <span className="text-red-500">*</span></label>
                     <select value={formData.employment_type} onChange={(e) => setFormData(prev => ({ ...prev, employment_type: e.target.value as EmploymentType }))} className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800">
-                      <option value="常勤">常勤</option>
-                      <option value="パート">パート</option>
+                      <option value={EMPLOYMENT_TYPES.FULL_TIME}>常勤</option>
+                      <option value={EMPLOYMENT_TYPES.PART_TIME}>パート</option>
                     </select>
                   </div>
                 </div>
                 <div className="mt-3">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">職種 <span className="text-red-500">*</span></label>
                   <select value={formData.job_type} onChange={(e) => setFormData(prev => ({ ...prev, job_type: e.target.value as JobType }))} className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800">
-                    <option value="看護師">看護師</option>
-                    <option value="臨床検査技師">臨床検査技師</option>
-                    <option value="看護助手">看護助手</option>
+                    <option value={JOB_TYPES.NURSE}>看護師</option>
+                    <option value={JOB_TYPES.CLINICAL_TECH}>臨床検査技師</option>
+                    <option value={JOB_TYPES.NURSE_ASSISTANT}>看護助手</option>
                   </select>
                 </div>
               </div>
@@ -406,7 +406,7 @@ const EmployeePage: React.FC = () => {
                         <div className="ml-7">
                           <div className="text-xs font-medium text-gray-600 mb-1">クリニック棟</div>
                           <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
-                            {facilityOptions.filter(f => f.category === 'クリニック棟').map((facility) => (
+                            {facilityOptions.filter(f => f.category === FACILITY_TYPES.CLINIC).map((facility) => (
                               <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
                                 <input type="checkbox" checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false} onChange={(e) => { const dayWorkplaces = formData.assignable_workplaces_by_day[day] || []; const newDayWorkplaces = e.target.checked ? [...dayWorkplaces, facility.value] : dayWorkplaces.filter(w => w !== facility.value); setFormData(prev => ({ ...prev, assignable_workplaces_by_day: { ...prev.assignable_workplaces_by_day, [day]: newDayWorkplaces } })); }} className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200" disabled={day === '水'} />
                                 <span className={`text-gray-700 ${day === '水' ? 'text-gray-400' : ''}`}>{facility.label}</span>
@@ -415,7 +415,7 @@ const EmployeePage: React.FC = () => {
                           </div>
                           <div className="text-xs font-medium text-gray-600 mt-2 mb-1">健診棟</div>
                           <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
-                            {facilityOptions.filter(f => f.category === '健診棟').map((facility) => (
+                            {facilityOptions.filter(f => f.category === FACILITY_TYPES.HEALTH_CHECK).map((facility) => (
                               <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
                                 <input type="checkbox" checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false} onChange={(e) => { const dayWorkplaces = formData.assignable_workplaces_by_day[day] || []; const newDayWorkplaces = e.target.checked ? [...dayWorkplaces, facility.value] : dayWorkplaces.filter(w => w !== facility.value); setFormData(prev => ({ ...prev, assignable_workplaces_by_day: { ...prev.assignable_workplaces_by_day, [day]: newDayWorkplaces } })); }} className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200" />
                                 <span className="text-gray-700">{facility.label}</span>
