@@ -82,7 +82,7 @@ export async function verifySession(sessionToken: string) {
     const resolvedRole = data.role
       ? data.role
       : data.is_system_account
-        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        ? 'admin'
         : 'employee'
 
     return {
@@ -151,7 +151,7 @@ export async function authenticate(credentials: LoginCredentials): Promise<{ use
     const resolvedRole = data.role
       ? data.role
       : data.is_system_account
-        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        ? 'admin'
         : 'employee'
 
     // ユーザー情報とセッショントークンを返す
