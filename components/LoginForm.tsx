@@ -59,7 +59,7 @@ export default function LoginForm() {
             <div className="w-16 h-16 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Lock className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">シフト管理ツール</h1>
+            <h1 className="text-2xl font-bold text-gray-800">AIシフト管理ツール</h1>
             <p className="text-gray-600 mt-2">ログインしてください</p>
           </div>
 
