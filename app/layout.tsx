@@ -4,7 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ShiftDataProvider } from '@/contexts/ShiftDataContext'
 
 export const metadata: Metadata = {
-  title: 'シフト管理ツール',
+  title: 'AIシフト管理ツール',
   description: 'AIを活用した医療機関向けシフト管理ツール',
 }
 

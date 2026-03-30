@@ -8,7 +8,7 @@ test.describe('Accessibility', () => {
   test('login page has proper heading', async ({ page }) => {
     const heading = page.locator('h1')
     await expect(heading).toBeVisible()
-    await expect(heading).toHaveText('シフト管理ツール')
+    await expect(heading).toHaveText('AIシフト管理ツール')
   })
 
   test('form labels are present for inputs', async ({ page }) => {

@@ -87,6 +87,7 @@ CREATE TABLE employees (
     session_token TEXT,                                        -- セッショントークン
     last_login TIMESTAMP WITH TIME ZONE,                       -- 最終ログイン日時
     is_system_account BOOLEAN DEFAULT FALSE,                   -- システムアカウントフラグ（admin/developer）
+    role VARCHAR(20) NOT NULL DEFAULT 'employee',             -- ロール（admin/employee/developer）
     order_index INTEGER DEFAULT 0,                             -- 表示順序
     assignable_workplaces_by_day JSONB NOT NULL DEFAULT '{}', -- Record<string, string[]>
     assignable_shift_pattern_ids UUID[] NOT NULL DEFAULT '{}',
@@ -159,6 +160,10 @@ CREATE TABLE shifts (
     -- 配置場所�E�名前で保存！E
     am_workplace VARCHAR(100),
     pm_workplace VARCHAR(100),
+
+    -- 配置場所ID（workplacesテーブル参照）
+    am_workplace_id UUID,
+    pm_workplace_id UUID,
 
     -- カスタム時間
     custom_start_time TIME,

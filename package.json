@@ -1,7 +1,7 @@
 {
   "name": "medi-shift-tool",
   "version": "1.0.0",
-  "description": "シフト管理ツール",
+  "description": "AIシフト管理ツール",
   "private": true,
   "scripts": {
     "dev": "next dev",
