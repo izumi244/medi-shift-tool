@@ -275,7 +275,7 @@ export default function MainLayout({ children }: LayoutProps) {
           <div className="bg-white rounded-2xl p-6 mb-5 shadow-lg">
             <div className="flex justify-between items-center">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                🏥 シフト作成ツール
+                🏥 シフト管理ツール
               </h1>
               <div className="text-right text-gray-600">
                 <div className="text-sm mb-1">{currentDate}</div>

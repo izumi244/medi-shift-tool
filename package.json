@@ -1,7 +1,7 @@
 {
   "name": "medi-shift-tool",
   "version": "1.0.0",
-  "description": "メディ様専用シフト作成ツール - プロトタイプ",
+  "description": "シフト管理ツール",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -52,6 +52,6 @@
     "ai-powered",
     "healthcare"
   ],
-  "author": "メディ様専用開発チーム",
+  "author": "開発チーム",
   "license": "UNLICENSED"
 }

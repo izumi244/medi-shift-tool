@@ -4,8 +4,8 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ShiftDataProvider } from '@/contexts/ShiftDataContext'
 
 export const metadata: Metadata = {
-  title: 'メディ様専用シフト作成ツール',
-  description: 'AIを活用した医療機関向けシフト管理システム',
+  title: 'シフト管理ツール',
+  description: 'AIを活用した医療機関向けシフト管理ツール',
 }
 
 export default function RootLayout({
