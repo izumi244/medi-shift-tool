@@ -51,8 +51,34 @@ import {
   deleteConstraint as serverDeleteConstraint,
 } from '@/app/actions/constraints'
 
-// generateShift は引き続きAPI route を使用（別のエージェントが修正中）
 import { authFetch } from '@/lib/api-client'
+
+// ==================== 生成結果型定義 ====================
+
+interface GenerateShiftDropReasons {
+  missing_fields: number
+  invalid_date: number
+  out_of_range: number
+  unknown_employee: number
+  unavailable_day: number
+  invalid_pattern: number
+  invalid_workplace: number
+  leave_conflict: number
+  duplicate: number
+}
+
+interface GenerateShiftSummary {
+  total_generated: number
+  total_valid: number
+  dropped: number
+  drop_reasons: GenerateShiftDropReasons
+  target_month: string
+}
+
+interface GenerateShiftResult {
+  shifts: Record<string, unknown>[]
+  summary: GenerateShiftSummary
+}
 
 // ==================== Context型定義 ====================
 
@@ -76,42 +102,33 @@ interface ShiftDataContextType {
   addEmployee: (employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee | EmployeeAccountInfo>
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
   deleteEmployee: (id: string) => Promise<void>
-  getEmployeeById: (id: string) => Employee | undefined
   reorderEmployee: (employeeId: string, direction: 'up' | 'down') => Promise<void>
 
   // 配置場所管理
   addWorkplace: (workplace: Omit<Workplace, 'id' | 'created_at' | 'updated_at'>) => Promise<Workplace>
   updateWorkplace: (id: string, updates: Partial<Workplace>) => Promise<void>
   deleteWorkplace: (id: string) => Promise<void>
-  getWorkplaceById: (id: string) => Workplace | undefined
 
   // シフトパターン管理
   addShiftPattern: (pattern: Omit<ShiftPattern, 'id'>) => Promise<ShiftPattern>
   updateShiftPattern: (id: string, updates: Partial<ShiftPattern>) => Promise<void>
   deleteShiftPattern: (id: string) => Promise<void>
-  getShiftPatternById: (id: string) => ShiftPattern | undefined
 
   // シフト管理
   addShift: (shift: Omit<Shift, 'id' | 'created_at' | 'updated_at'>) => Promise<Shift>
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>
   deleteShift: (id: string) => Promise<void>
-  getShiftById: (id: string) => Shift | undefined
-  getShiftsByMonth: (year: number, month: number) => Shift[]
-  bulkUpsertShifts: (shifts: Omit<Shift, 'created_at' | 'updated_at'>[]) => Promise<void>
-  generateShift: (targetMonth: string, specialRequests?: string) => Promise<{ shifts: any[]; summary: any }>
+  generateShift: (targetMonth: string, specialRequests?: string) => Promise<GenerateShiftResult>
 
   // 希望休管理
   addLeaveRequest: (leave: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => Promise<LeaveRequest>
   updateLeaveRequest: (id: string, updates: Partial<LeaveRequest>) => Promise<void>
   deleteLeaveRequest: (id: string) => Promise<void>
-  getLeaveRequestById: (id: string) => LeaveRequest | undefined
-  getLeaveRequestsByMonth: (year: number, month: number) => LeaveRequest[]
 
   // 制約管理
   addConstraint: (constraint: Omit<AIConstraintGuideline, 'id' | 'created_at' | 'updated_at'>) => Promise<AIConstraintGuideline>
   updateConstraint: (id: string, updates: Partial<AIConstraintGuideline>) => Promise<void>
   deleteConstraint: (id: string) => Promise<void>
-  getConstraintById: (id: string) => AIConstraintGuideline | undefined
 
   // データリフレッシュ
   refreshAllData: () => Promise<void>
@@ -168,16 +185,25 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'データの取得に失敗しました'
       setRefreshError(message)
-      console.error('refreshAllData error:', error)
+      console.error('データ取得エラー:', error)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // 認証状態が変わったらデータを取得
+  // 認証状態が変わったらデータを取得/クリア
   useEffect(() => {
     if (isAuthenticated) {
       refreshAllData()
+    } else {
+      // ログアウト時にデータをクリア
+      setShiftPatterns([])
+      setEmployees([])
+      setWorkplaces([])
+      setConstraints([])
+      setShifts([])
+      setLeaveRequests([])
+      setRefreshError(null)
     }
   }, [isAuthenticated, refreshAllData])
 
@@ -188,10 +214,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success && result.data) {
       const employee = result.data.employee
       setEmployees((prev) => [...prev, employee])
-      // アカウント情報も返す（新規作成時のみ）
       return result.data.accountInfo || employee
     }
-    throw new Error(result.error?.message || 'Failed to add employee')
+    throw new Error(result.error?.message || '従業員の追加に失敗しました')
   }, [])
 
   const updateEmployee = useCallback(async (id: string, updates: Partial<Employee>) => {
@@ -201,7 +226,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((emp) => (emp.id === id ? result.data! : emp))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update employee')
+      throw new Error(result.error?.message || '従業員の更新に失敗しました')
     }
   }, [])
 
@@ -210,24 +235,16 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setEmployees((prev) => prev.filter((emp) => emp.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete employee')
+      throw new Error(result.error?.message || '従業員の削除に失敗しました')
     }
   }, [])
-
-  const getEmployeeById = useCallback(
-    (id: string) => {
-      return employees.find((emp) => emp.id === id)
-    },
-    [employees]
-  )
 
   const reorderEmployee = useCallback(async (employeeId: string, direction: 'up' | 'down') => {
     const result = await serverReorderEmployee(employeeId, direction)
     if (result.success) {
-      // データを再取得して最新の順序を反映
       await refreshAllData()
     } else {
-      throw new Error(result.error?.message || 'Failed to reorder employee')
+      throw new Error(result.error?.message || '従業員の並び替えに失敗しました')
     }
   }, [refreshAllData])
 
@@ -239,7 +256,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       setWorkplaces((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add workplace')
+    throw new Error(result.error?.message || '配置場所の追加に失敗しました')
   }, [])
 
   const updateWorkplace = useCallback(async (id: string, updates: Partial<Workplace>) => {
@@ -249,7 +266,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((wp) => (wp.id === id ? result.data! : wp))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update workplace')
+      throw new Error(result.error?.message || '配置場所の更新に失敗しました')
     }
   }, [])
 
@@ -258,16 +275,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setWorkplaces((prev) => prev.filter((wp) => wp.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete workplace')
+      throw new Error(result.error?.message || '配置場所の削除に失敗しました')
     }
   }, [])
-
-  const getWorkplaceById = useCallback(
-    (id: string) => {
-      return workplaces.find((wp) => wp.id === id)
-    },
-    [workplaces]
-  )
 
   // ==================== シフトパターン管理 ====================
 
@@ -277,7 +287,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       setShiftPatterns((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add shift pattern')
+    throw new Error(result.error?.message || 'シフトパターンの追加に失敗しました')
   }, [])
 
   const updateShiftPattern = useCallback(async (id: string, updates: Partial<ShiftPattern>) => {
@@ -287,7 +297,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((pattern) => (pattern.id === id ? result.data! : pattern))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update shift pattern')
+      throw new Error(result.error?.message || 'シフトパターンの更新に失敗しました')
     }
   }, [])
 
@@ -296,16 +306,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setShiftPatterns((prev) => prev.filter((pattern) => pattern.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete shift pattern')
+      throw new Error(result.error?.message || 'シフトパターンの削除に失敗しました')
     }
   }, [])
-
-  const getShiftPatternById = useCallback(
-    (id: string) => {
-      return shiftPatterns.find((pattern) => pattern.id === id)
-    },
-    [shiftPatterns]
-  )
 
   // ==================== シフト管理 ====================
 
@@ -315,7 +318,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       setShifts((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add shift')
+    throw new Error(result.error?.message || 'シフトの追加に失敗しました')
   }, [])
 
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
@@ -325,7 +328,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((shift) => (shift.id === id ? result.data! : shift))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update shift')
+      throw new Error(result.error?.message || 'シフトの更新に失敗しました')
     }
   }, [])
 
@@ -334,46 +337,10 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setShifts((prev) => prev.filter((shift) => shift.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete shift')
+      throw new Error(result.error?.message || 'シフトの削除に失敗しました')
     }
   }, [])
 
-  const getShiftById = useCallback(
-    (id: string) => {
-      return shifts.find((shift) => shift.id === id)
-    },
-    [shifts]
-  )
-
-  const getShiftsByMonth = useCallback(
-    (year: number, month: number) => {
-      return shifts.filter((shift) => {
-        const shiftDate = new Date(shift.date)
-        return (
-          shiftDate.getFullYear() === year &&
-          shiftDate.getMonth() + 1 === month
-        )
-      })
-    },
-    [shifts]
-  )
-
-  const bulkUpsertShifts = useCallback(async (shiftsData: Omit<Shift, 'created_at' | 'updated_at'>[]) => {
-    // 一括でシフトを作成/更新
-    const promises = shiftsData.map(async (shiftData) => {
-      if (shiftData.id) {
-        // 更新
-        return updateShift(shiftData.id, shiftData)
-      } else {
-        // 新規作成
-        return addShift(shiftData)
-      }
-    })
-
-    await Promise.all(promises)
-  }, [updateShift, addShift])
-
-  // generateShift はAPI routeを引き続き使用（別のエージェントが修正中のため）
   const generateShift = useCallback(async (targetMonth: string, specialRequests?: string) => {
     const res = await authFetch('/api/generate-shift', {
       method: 'POST',
@@ -383,14 +350,12 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         special_requests: specialRequests
       }),
     })
-    const result = await res.json()
-    if (result.success) {
-      // /api/generate-shift内で既にDBに保存済みなので、ここでは再保存しない
-      // ローカル状態を更新するため、データを再取得
+    const result: { success: boolean; data?: GenerateShiftResult; error?: { message: string } } = await res.json()
+    if (result.success && result.data) {
       await refreshAllData()
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to generate shift')
+    throw new Error(result.error?.message || 'シフト生成に失敗しました')
   }, [refreshAllData])
 
   // ==================== 希望休管理 ====================
@@ -401,7 +366,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       setLeaveRequests((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add leave request')
+    throw new Error(result.error?.message || '希望休の追加に失敗しました')
   }, [])
 
   const updateLeaveRequest = useCallback(async (id: string, updates: Partial<LeaveRequest>) => {
@@ -411,7 +376,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((leave) => (leave.id === id ? result.data! : leave))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update leave request')
+      throw new Error(result.error?.message || '希望休の更新に失敗しました')
     }
   }, [])
 
@@ -420,29 +385,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setLeaveRequests((prev) => prev.filter((leave) => leave.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete leave request')
+      throw new Error(result.error?.message || '希望休の削除に失敗しました')
     }
   }, [])
-
-  const getLeaveRequestById = useCallback(
-    (id: string) => {
-      return leaveRequests.find((leave) => leave.id === id)
-    },
-    [leaveRequests]
-  )
-
-  const getLeaveRequestsByMonth = useCallback(
-    (year: number, month: number) => {
-      return leaveRequests.filter((leave) => {
-        const leaveDate = new Date(leave.date)
-        return (
-          leaveDate.getFullYear() === year &&
-          leaveDate.getMonth() + 1 === month
-        )
-      })
-    },
-    [leaveRequests]
-  )
 
   // ==================== 制約管理 ====================
 
@@ -452,7 +397,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
       setConstraints((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add constraint')
+    throw new Error(result.error?.message || '制約条件の追加に失敗しました')
   }, [])
 
   const updateConstraint = useCallback(async (id: string, updates: Partial<AIConstraintGuideline>) => {
@@ -462,7 +407,7 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         prev.map((constraint) => (constraint.id === id ? result.data! : constraint))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update constraint')
+      throw new Error(result.error?.message || '制約条件の更新に失敗しました')
     }
   }, [])
 
@@ -471,16 +416,9 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       setConstraints((prev) => prev.filter((constraint) => constraint.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete constraint')
+      throw new Error(result.error?.message || '制約条件の削除に失敗しました')
     }
   }, [])
-
-  const getConstraintById = useCallback(
-    (id: string) => {
-      return constraints.find((constraint) => constraint.id === id)
-    },
-    [constraints]
-  )
 
   // ==================== Context値 ====================
 
@@ -497,32 +435,23 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     addEmployee,
     updateEmployee,
     deleteEmployee,
-    getEmployeeById,
     reorderEmployee,
     addWorkplace,
     updateWorkplace,
     deleteWorkplace,
-    getWorkplaceById,
     addShiftPattern,
     updateShiftPattern,
     deleteShiftPattern,
-    getShiftPatternById,
     addShift,
     updateShift,
     deleteShift,
-    getShiftById,
-    getShiftsByMonth,
-    bulkUpsertShifts,
     generateShift,
     addLeaveRequest,
     updateLeaveRequest,
     deleteLeaveRequest,
-    getLeaveRequestById,
-    getLeaveRequestsByMonth,
     addConstraint,
     updateConstraint,
     deleteConstraint,
-    getConstraintById,
     refreshAllData,
   }
 

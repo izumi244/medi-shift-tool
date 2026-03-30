@@ -24,12 +24,6 @@ export const REQUEST_STATUS = {
   REJECTED: '却下' as const,
 }
 
-export const SHIFT_STATUS = {
-  DRAFT: 'draft' as const,
-  CONFIRMED: 'confirmed' as const,
-  MODIFIED: 'modified' as const,
-}
-
 // === 休暇種別定数 ===
 export const LEAVE_TYPES = {
   HOPE_REST: '希望休' as const,
@@ -69,19 +63,6 @@ export const JOB_TYPES = {
 export const FACILITY_TYPES = {
   CLINIC: 'クリニック棟' as const,
   HEALTH_CHECK: '健診棟' as const,
-}
-
-// === タイムスロット定数 ===
-export const TIME_SLOTS = {
-  AM: 'AM' as const,
-  PM: 'PM' as const,
-}
-
-// === シフト種別定数 ===
-export const SHIFT_TYPES = {
-  EARLY: '早番' as const,
-  LATE: '遅番' as const,
-  CUSTOM: 'カスタム' as const,
 }
 
 /** 職種アイコン */

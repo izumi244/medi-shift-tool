@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import type { Employee, Workplace, ShiftPattern, LeaveRequest, AIConstraintGuideline } from '@/types'
 import { authenticateRequest, isAdmin } from '@/lib/api-auth'
-import { REQUEST_STATUS } from '@/lib/constants'
+import { REQUEST_STATUS, NON_WORKING_LEAVE_TYPES } from '@/lib/constants'
 
 // カレンダー生成関数（指定月の全日付を生成）
 function generateMonthCalendar(targetMonth: string) {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     ])
 
     if (employeesError || workplacesError || patternsError || leavesError || constraintsError) {
-      console.error('Data fetch error:', { employeesError, workplacesError, patternsError, leavesError, constraintsError })
+      console.error('データ取得エラー:', { employeesError, workplacesError, patternsError, leavesError, constraintsError })
       return NextResponse.json(
         { success: false, error: { message: 'データの取得に失敗しました' } },
         { status: 500 }
@@ -172,6 +172,7 @@ export async function POST(request: NextRequest) {
       time_slot: w.time_slot,
       day_of_week: w.day_of_week,
       required_count: w.required_count,
+      remarks: w.remarks || null,
     }))
 
     const cleanedShiftPatterns = (shiftPatterns || []).map((p: ShiftPattern) => ({
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Dify API error:', errorText)
+      console.error('Dify APIエラー:', errorText)
       return NextResponse.json(
         { success: false, error: { message: 'シフト生成サービスへの接続に失敗しました' } },
         { status: response.status }
@@ -290,7 +291,7 @@ export async function POST(request: NextRequest) {
         throw new Error('レスポンスにJSONデータが見つかりません')
       }
     } catch (parseError: unknown) {
-      console.error('JSON parse error:', parseError)
+      console.error('JSONパースエラー:', parseError)
 
       return NextResponse.json({
         success: false,
@@ -308,10 +309,9 @@ export async function POST(request: NextRequest) {
 
     // 休暇日マップを作成（employee_id+date → leave_type）
     const leaveMap = new Map<string, string>()
-    const leaveTypes = ['希望休', '有休', '忌引', '病欠', 'その他']
     if (leaveRequests) {
       for (const lr of leaveRequests as LeaveRequest[]) {
-        if (leaveTypes.includes(lr.leave_type)) {
+        if ((NON_WORKING_LEAVE_TYPES as readonly string[]).includes(lr.leave_type)) {
           leaveMap.set(`${lr.employee_id}_${lr.date}`, lr.leave_type)
         }
       }
@@ -324,8 +324,11 @@ export async function POST(request: NextRequest) {
     const dropReasons: Record<string, number> = {
       missing_fields: 0,
       invalid_date: 0,
+      out_of_range: 0,
       unknown_employee: 0,
       unavailable_day: 0,
+      invalid_pattern: 0,
+      invalid_workplace: 0,
       leave_conflict: 0,
       duplicate: 0,
     }
@@ -351,6 +354,12 @@ export async function POST(request: NextRequest) {
         return false
       }
 
+      // 対象月範囲チェック
+      if (shift.date < startDate || shift.date > lastDate) {
+        dropReasons.out_of_range++
+        return false
+      }
+
       // 従業員の存在チェック
       const employee = employees?.find((emp: Employee) => emp.id === shift.employee_id)
       if (!employee) {
@@ -367,6 +376,29 @@ export async function POST(request: NextRequest) {
       if (employee.available_days && !employee.available_days.includes(shiftDayName)) {
         dropReasons.unavailable_day++
         return false
+      }
+
+      // shift_pattern_idの従業員許可チェック
+      if (shift.shift_pattern_id && employee.assignable_shift_pattern_ids) {
+        if (!employee.assignable_shift_pattern_ids.includes(shift.shift_pattern_id)) {
+          dropReasons.invalid_pattern++
+          return false
+        }
+      }
+
+      // 配置場所の従業員割り当てチェック（assignable_workplaces_by_day）
+      if (employee.assignable_workplaces_by_day && employee.assignable_workplaces_by_day[shiftDayName]) {
+        const allowedWorkplaces = employee.assignable_workplaces_by_day[shiftDayName]
+        const amWp = shift.am_workplace as string | undefined
+        const pmWp = shift.pm_workplace as string | undefined
+        if (amWp && allowedWorkplaces.length > 0 && !allowedWorkplaces.includes(amWp)) {
+          dropReasons.invalid_workplace++
+          return false
+        }
+        if (pmWp && allowedWorkplaces.length > 0 && !allowedWorkplaces.includes(pmWp)) {
+          dropReasons.invalid_workplace++
+          return false
+        }
       }
 
       // 休暇日チェック（承認済み休暇の日にシフトを割り当てない）
@@ -417,24 +449,26 @@ export async function POST(request: NextRequest) {
       const amWorkplaceId = amName ? (workplaceNameToId[amName] || null) : null
       const pmWorkplaceId = pmName ? (workplaceNameToId[pmName] || null) : null
 
-      return {
+      const shiftRecord: Record<string, unknown> = {
         employee_id: shift.employee_id,
         date: shift.date,
         shift_pattern_id: patternId,
         am_workplace: amName,
         pm_workplace: pmName,
-        am_workplace_id: amWorkplaceId,
-        pm_workplace_id: pmWorkplaceId,
         custom_start_time: shift.custom_start_time || null,
         custom_end_time: shift.custom_end_time || null,
         is_rest: shift.is_rest || false,
         rest_reason: shift.rest_reason || null,
         status: 'draft' as const,
       }
+      // DBにworkplace_idカラムが存在する場合のみ含める（マイグレーション済み環境対応）
+      if (amWorkplaceId) shiftRecord.am_workplace_id = amWorkplaceId
+      if (pmWorkplaceId) shiftRecord.pm_workplace_id = pmWorkplaceId
+      return shiftRecord
     })
 
     if (mappedShifts.length === 0) {
-      // Don't delete existing shifts if AI returned nothing valid
+      // AIが有効なシフトを生成できなかった場合は既存シフトを削除しない
       return NextResponse.json({
         success: false,
         error: { message: 'AIが有効なシフトを生成できませんでした' }
@@ -451,9 +485,15 @@ export async function POST(request: NextRequest) {
 
     if (backupError) {
       console.error('既存シフトバックアップ取得エラー:', backupError)
-      // バックアップ取得失敗でも続行（新規月の場合はデータがないため）
-    } else if (backupShifts && backupShifts.length > 0) {
-      console.log(`既存シフトバックアップ取得完了: ${backupShifts.length}件`)
+      // バックアップ取得に失敗した場合、既存データを保護するためdelete→insertを中止
+      return NextResponse.json({
+        success: false,
+        error: { message: '既存シフトのバックアップ取得に失敗したため、処理を中止しました。再度お試しください。' }
+      }, { status: 500 })
+    }
+
+    if (backupShifts && backupShifts.length > 0) {
+      // バックアップ取得成功（サーバーログ）
     }
 
     // Step 2: 既存シフトを削除
@@ -527,8 +567,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : '予期しないエラーが発生しました'
-    console.error('Error generating shift:', error)
+    console.error('シフト生成エラー:', error)
     return NextResponse.json(
       { success: false, error: { message: 'シフト生成中にエラーが発生しました' } },
       { status: 500 }

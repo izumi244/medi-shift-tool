@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
+import { resetPassword } from '@/app/actions/employees';
 import type { Employee, EmploymentType, JobType, EmployeeAccountInfo } from '@/types';
 import { employmentTypeColors } from '@/lib/colors';
 import { WORKDAYS, JOB_TYPE_ICONS, EMPLOYMENT_TYPES, JOB_TYPES, FACILITY_TYPES } from '@/lib/constants';
@@ -145,6 +146,30 @@ const EmployeePage: React.FC = () => {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // パスワードリセット
+  const handleResetPassword = async (employee: Employee) => {
+    if (!employee.employee_number) return;
+    if (!confirm(`${employee.name}のパスワードをリセットしますか？`)) return;
+
+    try {
+      const result = await resetPassword(employee.employee_number);
+      if (result.success && result.data) {
+        setAccountInfo({
+          employee_id: employee.id,
+          employee_number: result.data.employee_number,
+          initial_password: result.data.new_password,
+          created_at: new Date().toISOString()
+        });
+        setShowAccountInfo(true);
+      } else {
+        alert(result.error?.message || 'パスワードリセットに失敗しました');
+      }
+    } catch (error) {
+      console.error('パスワードリセットエラー:', error);
+      alert('パスワードリセットに失敗しました');
+    }
+  };
+
   const handleDeleteEmployee = async (id: string) => {
     if (confirm('この従業員を削除しますか？')) {
       try {
@@ -160,7 +185,7 @@ const EmployeePage: React.FC = () => {
     try {
       await reorderEmployee(id, direction);
     } catch (error) {
-      console.error('Failed to reorder employee:', error);
+      console.error('従業員の並び替えエラー:', error);
       alert('並び順の変更に失敗しました');
     }
   };
@@ -300,6 +325,15 @@ const EmployeePage: React.FC = () => {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {employee.employee_number && !employee.is_system_account && (
+                        <button
+                          onClick={() => handleResetPassword(employee)}
+                          className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                          title="パスワードリセット"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteEmployee(employee.id)}
                         className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
@@ -373,22 +407,30 @@ const EmployeePage: React.FC = () => {
 
               <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
                 <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><RefreshCw className="w-5 h-5" />勤務制約</h4>
-                <label className="flex items-center gap-2 p-3 rounded-lg cursor-pointer border-2 bg-white">
-                  <input
-                    type="checkbox"
-                    checked={formData.day_constraints.some(c => c.if === '水' && c.then === '木')}
-                    onChange={() => {
-                      const rule = { if: '水', then: '木' };
-                      const hasRule = formData.day_constraints.some(c => c.if === rule.if && c.then === rule.then);
-                      const newConstraints = hasRule
-                        ? formData.day_constraints.filter(c => c.if !== rule.if || c.then !== rule.then)
-                        : [...formData.day_constraints, rule];
-                      setFormData(prev => ({ ...prev, day_constraints: newConstraints }));
-                    }}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <span className="font-medium text-gray-700">水曜に出勤した場合、木曜は必ず休み</span>
-                </label>
+                <div className="space-y-2">
+                  {WORKDAYS.map((dayIf) => {
+                    const dayThenIndex = WORKDAYS.indexOf(dayIf) + 1;
+                    if (dayThenIndex >= WORKDAYS.length) return null;
+                    const dayThen = WORKDAYS[dayThenIndex];
+                    const hasRule = formData.day_constraints.some(c => c.if === dayIf && c.then === dayThen);
+                    return (
+                      <label key={`${dayIf}-${dayThen}`} className="flex items-center gap-2 p-3 rounded-lg cursor-pointer border-2 bg-white">
+                        <input
+                          type="checkbox"
+                          checked={hasRule}
+                          onChange={() => {
+                            const newConstraints = hasRule
+                              ? formData.day_constraints.filter(c => c.if !== dayIf || c.then !== dayThen)
+                              : [...formData.day_constraints, { if: dayIf, then: dayThen }];
+                            setFormData(prev => ({ ...prev, day_constraints: newConstraints }));
+                          }}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span className="font-medium text-gray-700">{dayIf}曜に出勤した場合、{dayThen}曜は必ず休み</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">

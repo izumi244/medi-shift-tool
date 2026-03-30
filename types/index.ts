@@ -1,16 +1,11 @@
 // types/index.ts
 
-import { ReactNode } from 'react'
-
 // ==================== 基本型定義 ====================
-
-export type PageType = 'dataInput' | 'employee' | 'workplace' | 'leave' | 'constraints' | 'shift'
 
 export type EmploymentType = '常勤' | 'パート'
 export type JobType = '看護師' | '臨床検査技師' | '看護助手'
 export type FacilityType = 'クリニック棟' | '健診棟'
 export type TimeSlot = 'AM' | 'PM'
-export type ShiftType = '早番' | '遅番' | 'カスタム'
 export type LeaveType = '希望休' | '有休' | '忌引' | '病欠' | 'その他' | '出勤可能' | '休み'
 export type RequestStatus = '申請中' | '承認' | '却下'
 
@@ -133,97 +128,6 @@ export interface AIConstraintGuideline {
   is_active: boolean
   created_at: string
   updated_at: string
-}
-
-// ==================== フォーム型定義 ====================
-
-// 従業員フォーム
-export interface EmployeeFormData {
-  name: string
-  employment_type: EmploymentType
-  job_type: JobType
-  assignable_facilities: FacilityType[]
-  available_days: string[]
-  phone?: string
-  email?: string
-  notes?: string
-}
-
-// 希望休フォーム
-export interface LeaveFormData {
-  employee_id: string
-  date: string
-  leave_type: LeaveType
-  reason?: string
-}
-
-// AI制約フォーム（シンプル化 - constraint_contentのみ）
-export interface ConstraintFormData {
-  constraint_content: string
-}
-
-// ==================== API型定義 ====================
-
-// APIエラー
-export interface APIError {
-  message: string
-}
-
-// APIレスポンス
-export interface APIResponse<T = any> {
-  success: boolean
-  data?: T
-  error?: APIError
-}
-
-// バリデーションエラー
-export interface ValidationError {
-  field: string
-  message: string
-  code: string
-}
-
-// ==================== プロップス型定義 ====================
-
-// レイアウトコンポーネント
-export interface LayoutProps {
-  children: ReactNode
-}
-
-// ページコンポーネント
-export interface PageProps {
-  searchParams?: { [key: string]: string | string[] | undefined }
-}
-
-// ==================== ユーティリティ型 ====================
-
-// 日付範囲
-export interface DateRange {
-  start: string
-  end: string
-}
-
-// 検索フィルター
-export interface SearchFilters {
-  text?: string
-  employment_type?: EmploymentType[]
-  job_type?: JobType[]
-  facility?: FacilityType[]
-  date_range?: DateRange
-  active_only?: boolean
-}
-
-// ソート設定
-export interface SortConfig {
-  field: string
-  direction: 'asc' | 'desc'
-}
-
-// ページネーション
-export interface PaginationConfig {
-  page: number
-  limit: number
-  total?: number
 }
 
 // User型は types/auth.ts に統一（重複削除）

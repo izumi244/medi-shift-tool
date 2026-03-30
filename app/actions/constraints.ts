@@ -31,13 +31,13 @@ export async function getConstraints(): Promise<ActionResponse<AIConstraintGuide
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching constraints:', error)
+      console.error('制約条件取得エラー:', error)
       return { success: false, error: { message: '制約データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as AIConstraintGuideline[] }
   } catch (error: unknown) {
-    console.error('Unexpected error in getConstraints:', error)
+    console.error('制約条件取得の予期しないエラー:', error)
     return { success: false, error: { message: '制約データの処理中にエラーが発生しました' } }
   }
 }
@@ -73,13 +73,13 @@ export async function createConstraint(
       .single()
 
     if (error) {
-      console.error('Error creating constraint:', error)
+      console.error('制約条件作成エラー:', error)
       return { success: false, error: { message: '制約データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as AIConstraintGuideline }
   } catch (error: unknown) {
-    console.error('Unexpected error in createConstraint:', error)
+    console.error('制約条件作成の予期しないエラー:', error)
     return { success: false, error: { message: '制約データの処理中にエラーが発生しました' } }
   }
 }
@@ -112,13 +112,13 @@ export async function updateConstraint(
       .single()
 
     if (error) {
-      console.error('Error updating constraint:', error)
+      console.error('制約条件更新エラー:', error)
       return { success: false, error: { message: '制約データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as AIConstraintGuideline }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateConstraint:', error)
+    console.error('制約条件更新の予期しないエラー:', error)
     return { success: false, error: { message: '制約データの処理中にエラーが発生しました' } }
   }
 }
@@ -143,13 +143,13 @@ export async function deleteConstraint(id: string): Promise<ActionResponse<{ id:
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting constraint:', error)
+      console.error('制約条件削除エラー:', error)
       return { success: false, error: { message: '制約データの処理に失敗しました' } }
     }
 
     return { success: true, data: { id } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteConstraint:', error)
+    console.error('制約条件削除の予期しないエラー:', error)
     return { success: false, error: { message: '制約データの処理中にエラーが発生しました' } }
   }
 }

@@ -545,7 +545,7 @@ const LeavePage: React.FC = () => {
                   </label>
                   <select
                     value={formData.leave_type}
-                    onChange={(e) => setFormData(prev => ({ ...prev, leave_type: e.target.value as any }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, leave_type: e.target.value as LeaveRequest['leave_type'] }))}
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800"
                   >
                     <option value={LEAVE_TYPES.HOPE_REST} className="text-gray-800">希望休</option>
@@ -651,6 +651,13 @@ const LeavePage: React.FC = () => {
                 </div>
               </div>
 
+              {selectedLeave.status === REQUEST_STATUS.REJECTED && selectedLeave.rejection_reason && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">却下理由</label>
+                  <p className="text-red-600 bg-red-50 p-2 rounded-lg">{selectedLeave.rejection_reason}</p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">申請日</label>
                 <p className="text-gray-900">
@@ -664,8 +671,13 @@ const LeavePage: React.FC = () => {
                   <button
                     onClick={async () => {
                       if (confirm('この申請を削除してもよろしいですか？')) {
-                        await deleteLeaveRequest(selectedLeave.id);
-                        setSelectedLeave(null);
+                        try {
+                          await deleteLeaveRequest(selectedLeave.id);
+                          setSelectedLeave(null);
+                        } catch (error) {
+                          const message = error instanceof Error ? error.message : '削除に失敗しました';
+                          alert(message);
+                        }
                       }
                     }}
                     className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
@@ -682,8 +694,12 @@ const LeavePage: React.FC = () => {
                       <>
                         <button
                           onClick={async () => {
-                            await approveLeave(selectedLeave.id);
-                            setSelectedLeave(null);
+                            try {
+                              await approveLeave(selectedLeave.id);
+                              setSelectedLeave(null);
+                            } catch (error) {
+                              // approveLeave already shows alert on error
+                            }
                           }}
                           disabled={isSaving}
                           className="flex-1 py-2 px-4 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
@@ -692,8 +708,12 @@ const LeavePage: React.FC = () => {
                         </button>
                         <button
                           onClick={async () => {
-                            await rejectLeave(selectedLeave.id, '管理者による却下');
-                            setSelectedLeave(null);
+                            try {
+                              await rejectLeave(selectedLeave.id, '管理者による却下');
+                              setSelectedLeave(null);
+                            } catch (error) {
+                              // rejectLeave already shows alert on error
+                            }
                           }}
                           disabled={isSaving}
                           className="flex-1 py-2 px-4 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-colors"
@@ -706,8 +726,13 @@ const LeavePage: React.FC = () => {
                     <button
                       onClick={async () => {
                         if (confirm('この申請を削除してもよろしいですか？')) {
-                          await deleteLeaveRequest(selectedLeave.id);
-                          setSelectedLeave(null);
+                          try {
+                            await deleteLeaveRequest(selectedLeave.id);
+                            setSelectedLeave(null);
+                          } catch (error) {
+                            const message = error instanceof Error ? error.message : '削除に失敗しました';
+                            alert(message);
+                          }
                         }
                       }}
                       className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"

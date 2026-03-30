@@ -33,13 +33,13 @@ export async function getWorkplaces(): Promise<ActionResponse<Workplace[]>> {
       .order('order_index', { ascending: true })
 
     if (error) {
-      console.error('Error fetching workplaces:', error)
+      console.error('配置場所取得エラー:', error)
       return { success: false, error: { message: '配置場所データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as Workplace[] }
   } catch (error: unknown) {
-    console.error('Unexpected error in getWorkplaces:', error)
+    console.error('配置場所取得の予期しないエラー:', error)
     return { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } }
   }
 }
@@ -81,13 +81,13 @@ export async function createWorkplace(
       .single()
 
     if (error) {
-      console.error('Error creating workplace:', error)
+      console.error('配置場所作成エラー:', error)
       return { success: false, error: { message: '配置場所データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as Workplace }
   } catch (error: unknown) {
-    console.error('Unexpected error in createWorkplace:', error)
+    console.error('配置場所作成の予期しないエラー:', error)
     return { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } }
   }
 }
@@ -120,13 +120,13 @@ export async function updateWorkplace(
       .single()
 
     if (error) {
-      console.error('Error updating workplace:', error)
+      console.error('配置場所更新エラー:', error)
       return { success: false, error: { message: '配置場所データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as Workplace }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateWorkplace:', error)
+    console.error('配置場所更新の予期しないエラー:', error)
     return { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } }
   }
 }
@@ -151,13 +151,13 @@ export async function deleteWorkplace(id: string): Promise<ActionResponse<{ id: 
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting workplace:', error)
+      console.error('配置場所削除エラー:', error)
       return { success: false, error: { message: '配置場所データの処理に失敗しました' } }
     }
 
     return { success: true, data: { id } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteWorkplace:', error)
+    console.error('配置場所削除の予期しないエラー:', error)
     return { success: false, error: { message: '配置場所データの処理中にエラーが発生しました' } }
   }
 }

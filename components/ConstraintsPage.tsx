@@ -47,18 +47,23 @@ const ConstraintsPage: React.FC = () => {
 
   // 制約を保存
   const saveConstraint = async () => {
-    if (editingConstraint) {
-      // 編集
-      await updateConstraint(editingConstraint.id, formData);
-    } else {
-      // 新規追加
-      await addConstraint({
-        ...formData,
-        is_active: true
-      });
-    }
+    try {
+      if (editingConstraint) {
+        // 編集
+        await updateConstraint(editingConstraint.id, formData);
+      } else {
+        // 新規追加
+        await addConstraint({
+          ...formData,
+          is_active: true
+        });
+      }
 
-    closeModal();
+      closeModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '制約条件の保存に失敗しました';
+      alert(message);
+    }
   };
 
   // 制約を削除
@@ -67,7 +72,7 @@ const ConstraintsPage: React.FC = () => {
       try {
         await deleteConstraintFromContext(id);
       } catch (error) {
-        console.error('制約条件の削除に失敗:', error);
+        console.error('制約条件の削除エラー:', error);
         alert('制約条件の削除に失敗しました');
       }
     }

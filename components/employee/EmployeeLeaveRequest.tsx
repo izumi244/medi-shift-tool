@@ -109,16 +109,18 @@ const EmployeeLeaveRequest: React.FC = () => {
     if (!currentEmployeeId || formDates.length === 0) return
     setIsSaving(true)
     try {
-      // Submit one request per date
-      for (const date of formDates) {
-        await addLeaveRequest({
-          employee_id: currentEmployeeId,
-          date,
-          leave_type: formLeaveType,
-          reason: formReason || undefined,
-          status: REQUEST_STATUS.PENDING as RequestStatus,
-        })
-      }
+      // Submit all requests in parallel
+      await Promise.all(
+        formDates.map(date =>
+          addLeaveRequest({
+            employee_id: currentEmployeeId,
+            date,
+            leave_type: formLeaveType,
+            reason: formReason || undefined,
+            status: REQUEST_STATUS.PENDING as RequestStatus,
+          })
+        )
+      )
       closeModal()
     } catch (error) {
       const message = error instanceof Error ? error.message : '申請の送信に失敗しました'

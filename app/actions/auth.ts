@@ -47,7 +47,7 @@ export async function changePasswordAction(
 
     return { success: true, data: { message: 'パスワードを変更しました' } }
   } catch (error: unknown) {
-    console.error('Change password error:', error)
+    console.error('パスワード変更エラー:', error)
     return { success: false, error: { message: 'パスワード変更に失敗しました' } }
   }
 }

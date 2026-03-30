@@ -5,7 +5,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { Employee, EmployeeAccountInfo } from '@/types'
-import { createEmployeeAccount } from '@/lib/auth'
+import { createEmployeeAccount, resetEmployeePassword } from '@/lib/auth'
 import { getAuthUser, requireAdmin, isAdmin } from '@/lib/server-action-auth'
 
 // 共通レスポンス型
@@ -33,7 +33,7 @@ export async function getEmployees(): Promise<ActionResponse<Employee[]>> {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching employees:', error)
+      console.error('従業員取得エラー:', error)
       return { success: false, error: { message: '従業員データの取得に失敗しました' } }
     }
 
@@ -55,7 +55,7 @@ export async function getEmployees(): Promise<ActionResponse<Employee[]>> {
 
     return { success: true, data: result as Employee[] }
   } catch (error: unknown) {
-    console.error('Unexpected error in getEmployees:', error)
+    console.error('従業員取得の予期しないエラー:', error)
     return { success: false, error: { message: '従業員データの取得中にエラーが発生しました' } }
   }
 }
@@ -116,7 +116,7 @@ export async function createEmployee(
       .single()
 
     if (updateError || !updatedEmployee) {
-      console.error('Error updating employee fields:', updateError)
+      console.error('従業員フィールド更新エラー:', updateError)
       // 更新に失敗しても、アカウント自体は作成済みなので基本情報を返す
       return {
         success: true,
@@ -137,7 +137,7 @@ export async function createEmployee(
       }
     }
   } catch (error: unknown) {
-    console.error('Unexpected error in createEmployee:', error)
+    console.error('従業員作成の予期しないエラー:', error)
     return { success: false, error: { message: '従業員の作成中にエラーが発生しました' } }
   }
 }
@@ -159,8 +159,8 @@ export async function updateEmployee(
 
     const supabase = createServerSupabaseClient()
 
-    // 機密フィールドとシステムフィールドを除外
-    const { created_at, updated_at, id: _id, password_hash, session_token, is_system_account, ...updateData } = updates as Record<string, unknown>
+    // 機密フィールド・システムフィールド・権限フィールドを除外
+    const { created_at, updated_at, id: _id, password_hash, session_token, is_system_account, role, ...updateData } = updates as Record<string, unknown>
 
     const { data, error } = await supabase
       .from('employees')
@@ -170,7 +170,7 @@ export async function updateEmployee(
       .single()
 
     if (error) {
-      console.error('Error updating employee:', error)
+      console.error('従業員更新エラー:', error)
       return { success: false, error: { message: '従業員の更新に失敗しました' } }
     }
 
@@ -178,7 +178,7 @@ export async function updateEmployee(
     const { password_hash: _ph, session_token: _st, ...safeData } = (data as Employee & { password_hash?: string; session_token?: string })
     return { success: true, data: safeData as Employee }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateEmployee:', error)
+    console.error('従業員更新の予期しないエラー:', error)
     return { success: false, error: { message: '従業員の更新中にエラーが発生しました' } }
   }
 }
@@ -203,13 +203,13 @@ export async function deleteEmployee(id: string): Promise<ActionResponse<{ id: s
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting employee:', error)
+      console.error('従業員削除エラー:', error)
       return { success: false, error: { message: '従業員の削除に失敗しました' } }
     }
 
     return { success: true, data: { id } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteEmployee:', error)
+    console.error('従業員削除の予期しないエラー:', error)
     return { success: false, error: { message: '従業員の削除中にエラーが発生しました' } }
   }
 }
@@ -284,7 +284,36 @@ export async function reorderEmployee(
 
     return { success: true, data: { message: '並び順を更新しました' } }
   } catch (error: unknown) {
-    console.error('Unexpected error in reorderEmployee:', error)
+    console.error('従業員並び替えの予期しないエラー:', error)
     return { success: false, error: { message: '従業員の並び替え中にエラーが発生しました' } }
+  }
+}
+
+// パスワードリセット（管理者専用）
+export async function resetPassword(
+  employeeNumber: string
+): Promise<ActionResponse<{ employee_number: string; new_password: string }>> {
+  try {
+    const user = await requireAdmin()
+    if (!user) {
+      return { success: false, error: { message: '管理者権限が必要です' } }
+    }
+
+    if (!employeeNumber) {
+      return { success: false, error: { message: '従業員番号は必須です' } }
+    }
+
+    const result = await resetEmployeePassword(employeeNumber)
+
+    return {
+      success: true,
+      data: {
+        employee_number: result.employee_number,
+        new_password: result.new_password
+      }
+    }
+  } catch (error: unknown) {
+    console.error('パスワードリセットの予期しないエラー:', error)
+    return { success: false, error: { message: 'パスワードリセット中にエラーが発生しました' } }
   }
 }

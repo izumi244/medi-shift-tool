@@ -43,7 +43,7 @@ export async function getShifts(options?: {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching shifts:', error)
+      console.error('シフト取得エラー:', error)
       return { success: false, error: { message: 'シフトデータの処理に失敗しました' } }
     }
 
@@ -61,7 +61,7 @@ export async function getShifts(options?: {
 
     return { success: true, data: result }
   } catch (error: unknown) {
-    console.error('Unexpected error in getShifts:', error)
+    console.error('シフト取得の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } }
   }
 }
@@ -109,35 +109,36 @@ export async function createShift(
       if (pmWps && pmWps.length > 0) pmWorkplaceId = pmWps[0].id
     }
 
+    const insertData: Record<string, unknown> = {
+      employee_id: body.employee_id,
+      date: body.date,
+      shift_pattern_id: body.shift_pattern_id,
+      am_workplace: body.am_workplace,
+      pm_workplace: body.pm_workplace,
+      custom_start_time: body.custom_start_time,
+      custom_end_time: body.custom_end_time,
+      is_rest: body.is_rest || false,
+      rest_reason: body.rest_reason,
+      status: body.status || 'draft'
+    }
+    // DBにworkplace_idカラムが存在する場合のみ含める（マイグレーション済み環境対応）
+    if (amWorkplaceId) insertData.am_workplace_id = amWorkplaceId
+    if (pmWorkplaceId) insertData.pm_workplace_id = pmWorkplaceId
+
     const { data, error } = await supabase
       .from('shifts')
-      .insert([
-        {
-          employee_id: body.employee_id,
-          date: body.date,
-          shift_pattern_id: body.shift_pattern_id,
-          am_workplace: body.am_workplace,
-          pm_workplace: body.pm_workplace,
-          am_workplace_id: amWorkplaceId,
-          pm_workplace_id: pmWorkplaceId,
-          custom_start_time: body.custom_start_time,
-          custom_end_time: body.custom_end_time,
-          is_rest: body.is_rest || false,
-          rest_reason: body.rest_reason,
-          status: body.status || 'draft'
-        }
-      ])
+      .insert([insertData])
       .select()
       .single()
 
     if (error) {
-      console.error('Error creating shift:', error)
+      console.error('シフト作成エラー:', error)
       return { success: false, error: { message: 'シフトデータの処理に失敗しました' } }
     }
 
     return { success: true, data: data as Shift }
   } catch (error: unknown) {
-    console.error('Unexpected error in createShift:', error)
+    console.error('シフト作成の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } }
   }
 }
@@ -159,8 +160,8 @@ export async function updateShift(
 
     const supabase = createServerSupabaseClient()
 
-    // システムフィールドを除外
-    const { created_at, updated_at, id: _id, ...updateData } = updates as Record<string, unknown>
+    // システムフィールドと改ざん防止フィールドを除外
+    const { created_at, updated_at, id: _id, employee_id, ...updateData } = updates as Record<string, unknown>
 
     const { data, error } = await supabase
       .from('shifts')
@@ -170,13 +171,13 @@ export async function updateShift(
       .single()
 
     if (error) {
-      console.error('Error updating shift:', error)
+      console.error('シフト更新エラー:', error)
       return { success: false, error: { message: 'シフトデータの処理に失敗しました' } }
     }
 
     return { success: true, data: data as Shift }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateShift:', error)
+    console.error('シフト更新の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } }
   }
 }
@@ -201,13 +202,13 @@ export async function deleteShift(id: string): Promise<ActionResponse<{ id: stri
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting shift:', error)
+      console.error('シフト削除エラー:', error)
       return { success: false, error: { message: 'シフトデータの処理に失敗しました' } }
     }
 
     return { success: true, data: { id } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteShift:', error)
+    console.error('シフト削除の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトデータの処理中にエラーが発生しました' } }
   }
 }

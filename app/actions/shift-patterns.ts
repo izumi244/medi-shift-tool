@@ -31,13 +31,13 @@ export async function getShiftPatterns(): Promise<ActionResponse<ShiftPattern[]>
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching shift patterns:', error)
+      console.error('シフトパターン取得エラー:', error)
       return { success: false, error: { message: 'シフトパターンデータの処理に失敗しました' } }
     }
 
     return { success: true, data: data as ShiftPattern[] }
   } catch (error: unknown) {
-    console.error('Unexpected error in getShiftPatterns:', error)
+    console.error('シフトパターン取得の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトパターンデータの処理中にエラーが発生しました' } }
   }
 }
@@ -77,13 +77,13 @@ export async function createShiftPattern(
       .single()
 
     if (error) {
-      console.error('Error creating shift pattern:', error)
+      console.error('シフトパターン作成エラー:', error)
       return { success: false, error: { message: 'シフトパターンデータの処理に失敗しました' } }
     }
 
     return { success: true, data: data as ShiftPattern }
   } catch (error: unknown) {
-    console.error('Unexpected error in createShiftPattern:', error)
+    console.error('シフトパターン作成の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトパターンデータの処理中にエラーが発生しました' } }
   }
 }
@@ -116,13 +116,13 @@ export async function updateShiftPattern(
       .single()
 
     if (error) {
-      console.error('Error updating shift pattern:', error)
+      console.error('シフトパターン更新エラー:', error)
       return { success: false, error: { message: 'シフトパターンデータの処理に失敗しました' } }
     }
 
     return { success: true, data: data as ShiftPattern }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateShiftPattern:', error)
+    console.error('シフトパターン更新の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトパターンデータの処理中にエラーが発生しました' } }
   }
 }
@@ -147,13 +147,13 @@ export async function deleteShiftPattern(id: string): Promise<ActionResponse<{ i
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting shift pattern:', error)
+      console.error('シフトパターン削除エラー:', error)
       return { success: false, error: { message: 'シフトパターンデータの処理に失敗しました' } }
     }
 
     return { success: true, data: { id } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteShiftPattern:', error)
+    console.error('シフトパターン削除の予期しないエラー:', error)
     return { success: false, error: { message: 'シフトパターンデータの処理中にエラーが発生しました' } }
   }
 }

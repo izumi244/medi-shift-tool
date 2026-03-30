@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error: unknown) {
-    console.error('Logout error:', error)
+    console.error('ログアウトエラー:', error)
     // エラーでもcookieは削除する
     const response = NextResponse.json({ success: true })
     response.cookies.set('session_token', '', {

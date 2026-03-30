@@ -67,7 +67,7 @@ export async function getLeaveRequests(
     const { data, error } = await query.order('date', { ascending: false })
 
     if (error) {
-      console.error('Error fetching leave requests:', error)
+      console.error('希望休取得エラー:', error)
       return { success: false, error: { message: '希望休データの処理に失敗しました' } }
     }
 
@@ -91,7 +91,7 @@ export async function getLeaveRequests(
 
     return { success: true, data: result }
   } catch (error: unknown) {
-    console.error('Unexpected error in getLeaveRequests:', error)
+    console.error('希望休取得の予期しないエラー:', error)
     return { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } }
   }
 }
@@ -137,7 +137,7 @@ export async function createLeaveRequest(
       .in('status', [REQUEST_STATUS.PENDING, REQUEST_STATUS.APPROVED])
 
     if (checkError) {
-      console.error('Error checking duplicate leave requests:', checkError)
+      console.error('希望休重複チェックエラー:', checkError)
       return { success: false, error: { message: '重複チェック中にエラーが発生しました' } }
     }
 
@@ -169,13 +169,13 @@ export async function createLeaveRequest(
       .single()
 
     if (error) {
-      console.error('Error creating leave request:', error)
+      console.error('希望休作成エラー:', error)
       return { success: false, error: { message: '希望休データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as LeaveRequest }
   } catch (error: unknown) {
-    console.error('Unexpected error in createLeaveRequest:', error)
+    console.error('希望休作成の予期しないエラー:', error)
     return { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } }
   }
 }
@@ -246,13 +246,13 @@ export async function updateLeaveRequest(
       .single()
 
     if (error) {
-      console.error('Error updating leave request:', error)
+      console.error('希望休更新エラー:', error)
       return { success: false, error: { message: '希望休データの処理に失敗しました' } }
     }
 
     return { success: true, data: data as LeaveRequest }
   } catch (error: unknown) {
-    console.error('Unexpected error in updateLeaveRequest:', error)
+    console.error('希望休更新の予期しないエラー:', error)
     return { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } }
   }
 }
@@ -329,13 +329,13 @@ export async function deleteLeaveRequest(
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting leave request:', error)
+      console.error('希望休削除エラー:', error)
       return { success: false, error: { message: '希望休データの処理に失敗しました' } }
     }
 
     return { success: true, data: { id, warning } }
   } catch (error: unknown) {
-    console.error('Unexpected error in deleteLeaveRequest:', error)
+    console.error('希望休削除の予期しないエラー:', error)
     return { success: false, error: { message: '希望休データの処理中にエラーが発生しました' } }
   }
 }

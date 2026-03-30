@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Download, ClipboardList, X, Trash2 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ShiftPattern, Employee, Workplace } from '@/types';
+import type { Employee, Workplace } from '@/types';
 import { REQUEST_STATUS, LEAVE_TYPES, LEAVE_TYPES_MASKED } from '@/lib/constants';
 
 // --- Component-Specific Types ---
@@ -147,7 +147,7 @@ const ShiftPage: React.FC = () => {
   const monthName = currentDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const generateDays = () => {
+  const days = React.useMemo(() => {
     const daysArray = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -155,10 +155,9 @@ const ShiftPage: React.FC = () => {
       daysArray.push({ day, dayOfWeek, isWednesday: dayOfWeek === '水', isSunday: dayOfWeek === '日' });
     }
     return daysArray;
-  };
-  const days = generateDays();
+  }, [year, month, daysInMonth]);
 
-  const handleCellClick = (employeeId: string, day: number, employeeName: string) => {
+  const handleCellClick = React.useCallback((employeeId: string, day: number, employeeName: string) => {
     if (!editMode) return;
 
     // --- Day Constraint Validation ---
@@ -203,7 +202,7 @@ const ShiftPage: React.FC = () => {
       restReason: shift?.restReason || LEAVE_TYPES_MASKED
     });
     setIsEditModalOpen(true);
-  };
+  }, [editMode, employees, days, shiftData, year, month]);
 
   const handleSaveEdit = async () => {
     if (!editingCell) return;
@@ -418,30 +417,44 @@ const ShiftPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午前配置</label>
-                      <select value={workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek).some(wp => wp.name === editValues.am) ? editValues.am : ''} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
-                        <option value="">選択なし</option>
-                        {workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek).map(wp => (
-                          <option key={wp.id} value={wp.name}>{wp.name}</option>
-                        ))}
-                      </select>
+                      {(() => {
+                        const emp = employees.find(e => e.id === editingCell.employeeId);
+                        const assignable = emp?.assignable_workplaces_by_day?.[editingCell.dayOfWeek] || [];
+                        const amOptions = workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek && (assignable.length === 0 || assignable.includes(wp.name)));
+                        return (
+                          <select value={amOptions.some(wp => wp.name === editValues.am) ? editValues.am : ''} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                            <option value="">選択なし</option>
+                            {amOptions.map(wp => (
+                              <option key={wp.id} value={wp.name}>{wp.name}</option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                   </div>
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午後配置</label>
-                      <select value={workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek).some(wp => wp.name === editValues.pm) ? editValues.pm : ''} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
-                        <option value="">選択なし</option>
-                        {workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek).map(wp => (
-                          <option key={wp.id} value={wp.name}>{wp.name}</option>
-                        ))}
-                      </select>
+                      {(() => {
+                        const emp = employees.find(e => e.id === editingCell.employeeId);
+                        const assignable = emp?.assignable_workplaces_by_day?.[editingCell.dayOfWeek] || [];
+                        const pmOptions = workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek && (assignable.length === 0 || assignable.includes(wp.name)));
+                        return (
+                          <select value={pmOptions.some(wp => wp.name === editValues.pm) ? editValues.pm : ''} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                            <option value="">選択なし</option>
+                            {pmOptions.map(wp => (
+                              <option key={wp.id} value={wp.name}>{wp.name}</option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                   </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">勤務タイプ</label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2"><input type="radio" value="pattern" checked={editValues.editType === 'pattern'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />パターン</label>
-                  <label className="flex items-center gap-2"><input type="radio" value="custom" checked={editValues.editType === 'custom'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />直接入力</label>
-                  <label className="flex items-center gap-2"><input type="radio" value="rest" checked={editValues.editType === 'rest'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />休み</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="pattern" checked={editValues.editType === 'pattern'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />パ���ーン</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="custom" checked={editValues.editType === 'custom'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />直接入力</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="rest" checked={editValues.editType === 'rest'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />休み</label>
                 </div>
               </div>
 

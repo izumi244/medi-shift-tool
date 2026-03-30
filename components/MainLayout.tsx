@@ -109,10 +109,11 @@ export default function MainLayout({ children }: LayoutProps) {
     // カードのIDをPageTypeに変換
     const pageMap: Record<string, PageType> = {
       'employee': 'employee',
-      'workplace': 'workplace', 
+      'workplace': 'workplace',
       'leave': 'leave',
       'constraints': 'constraints',
       'shift': 'shift',
+      'shift-pattern': 'shiftPattern',
       'shiftPattern': 'shiftPattern'
     }
     
