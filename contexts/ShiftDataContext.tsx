@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Employee,
   EmployeeAccountInfo,
@@ -10,6 +11,74 @@ import {
   LeaveRequest,
   AIConstraintGuideline,
 } from '@/types'
+
+// Server Actions をインポート
+import {
+  getEmployees as fetchEmployees,
+  createEmployee as serverCreateEmployee,
+  updateEmployee as serverUpdateEmployee,
+  deleteEmployee as serverDeleteEmployee,
+  reorderEmployee as serverReorderEmployee,
+} from '@/app/actions/employees'
+import {
+  getWorkplaces as fetchWorkplaces,
+  createWorkplace as serverCreateWorkplace,
+  updateWorkplace as serverUpdateWorkplace,
+  deleteWorkplace as serverDeleteWorkplace,
+} from '@/app/actions/workplaces'
+import {
+  getShiftPatterns as fetchShiftPatterns,
+  createShiftPattern as serverCreateShiftPattern,
+  updateShiftPattern as serverUpdateShiftPattern,
+  deleteShiftPattern as serverDeleteShiftPattern,
+} from '@/app/actions/shift-patterns'
+import {
+  getShifts as fetchShifts,
+  createShift as serverCreateShift,
+  updateShift as serverUpdateShift,
+  deleteShift as serverDeleteShift,
+} from '@/app/actions/shifts'
+import {
+  getLeaveRequests as fetchLeaveRequests,
+  createLeaveRequest as serverCreateLeaveRequest,
+  updateLeaveRequest as serverUpdateLeaveRequest,
+  deleteLeaveRequest as serverDeleteLeaveRequest,
+} from '@/app/actions/leave-requests'
+import {
+  getConstraints as fetchConstraints,
+  createConstraint as serverCreateConstraint,
+  updateConstraint as serverUpdateConstraint,
+  deleteConstraint as serverDeleteConstraint,
+} from '@/app/actions/constraints'
+
+import { authFetch } from '@/lib/api-client'
+
+// ==================== 生成結果型定義 ====================
+
+interface GenerateShiftDropReasons {
+  missing_fields: number
+  invalid_date: number
+  out_of_range: number
+  unknown_employee: number
+  unavailable_day: number
+  invalid_pattern: number
+  invalid_workplace: number
+  leave_conflict: number
+  duplicate: number
+}
+
+interface GenerateShiftSummary {
+  total_generated: number
+  total_valid: number
+  dropped: number
+  drop_reasons: GenerateShiftDropReasons
+  target_month: string
+}
+
+interface GenerateShiftResult {
+  shifts: Record<string, unknown>[]
+  summary: GenerateShiftSummary
+}
 
 // ==================== Context型定義 ====================
 
@@ -26,46 +95,40 @@ interface ShiftDataContextType {
   loading: boolean
   setLoading: (loading: boolean) => void
 
+  // エラー状態
+  refreshError: string | null
+
   // 従業員管理
   addEmployee: (employee: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee | EmployeeAccountInfo>
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
   deleteEmployee: (id: string) => Promise<void>
-  getEmployeeById: (id: string) => Employee | undefined
   reorderEmployee: (employeeId: string, direction: 'up' | 'down') => Promise<void>
 
   // 配置場所管理
   addWorkplace: (workplace: Omit<Workplace, 'id' | 'created_at' | 'updated_at'>) => Promise<Workplace>
   updateWorkplace: (id: string, updates: Partial<Workplace>) => Promise<void>
   deleteWorkplace: (id: string) => Promise<void>
-  getWorkplaceById: (id: string) => Workplace | undefined
 
   // シフトパターン管理
   addShiftPattern: (pattern: Omit<ShiftPattern, 'id'>) => Promise<ShiftPattern>
   updateShiftPattern: (id: string, updates: Partial<ShiftPattern>) => Promise<void>
   deleteShiftPattern: (id: string) => Promise<void>
-  getShiftPatternById: (id: string) => ShiftPattern | undefined
 
   // シフト管理
   addShift: (shift: Omit<Shift, 'id' | 'created_at' | 'updated_at'>) => Promise<Shift>
   updateShift: (id: string, updates: Partial<Shift>) => Promise<void>
   deleteShift: (id: string) => Promise<void>
-  getShiftById: (id: string) => Shift | undefined
-  getShiftsByMonth: (year: number, month: number) => Shift[]
-  bulkUpsertShifts: (shifts: Omit<Shift, 'created_at' | 'updated_at'>[]) => Promise<void>
-  generateShift: (targetMonth: string, specialRequests?: string) => Promise<{ shifts: any[]; summary: any }>
+  generateShift: (targetMonth: string, specialRequests?: string) => Promise<GenerateShiftResult>
 
   // 希望休管理
   addLeaveRequest: (leave: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => Promise<LeaveRequest>
   updateLeaveRequest: (id: string, updates: Partial<LeaveRequest>) => Promise<void>
   deleteLeaveRequest: (id: string) => Promise<void>
-  getLeaveRequestById: (id: string) => LeaveRequest | undefined
-  getLeaveRequestsByMonth: (year: number, month: number) => LeaveRequest[]
 
   // 制約管理
   addConstraint: (constraint: Omit<AIConstraintGuideline, 'id' | 'created_at' | 'updated_at'>) => Promise<AIConstraintGuideline>
   updateConstraint: (id: string, updates: Partial<AIConstraintGuideline>) => Promise<void>
   deleteConstraint: (id: string) => Promise<void>
-  getConstraintById: (id: string) => AIConstraintGuideline | undefined
 
   // データリフレッシュ
   refreshAllData: () => Promise<void>
@@ -76,7 +139,8 @@ const ShiftDataContext = createContext<ShiftDataContextType | undefined>(undefin
 // ==================== Provider ====================
 
 export function ShiftDataProvider({ children }: { children: ReactNode }) {
-  // 状態管理（初期値は空配列 - SupabaseからGETして取得）
+  const { isAuthenticated } = useAuth()
+  // 状態管理（初期値は空配列 - Server Actionsで取得）
   const [shiftPatterns, setShiftPatterns] = useState<ShiftPattern[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [workplaces, setWorkplaces] = useState<Workplace[]>([])
@@ -84,312 +148,201 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   // ==================== データリフレッシュ ====================
 
   const refreshAllData = useCallback(async () => {
+    // セッショントークンがない場合はスキップ（未ログイン時）
+    const { getSessionToken } = await import('@/lib/session')
+    if (!getSessionToken()) return
+
     setLoading(true)
+    setRefreshError(null)
     try {
       const [
-        employeesRes,
-        workplacesRes,
-        shiftPatternsRes,
-        constraintsRes,
-        shiftsRes,
-        leaveRequestsRes
+        employeesResult,
+        workplacesResult,
+        shiftPatternsResult,
+        constraintsResult,
+        shiftsResult,
+        leaveRequestsResult
       ] = await Promise.all([
-        fetch('/api/employees'),
-        fetch('/api/workplaces'),
-        fetch('/api/shift-patterns'),
-        fetch('/api/constraints'),
-        fetch('/api/shifts'),
-        fetch('/api/leave-requests')
+        fetchEmployees(),
+        fetchWorkplaces(),
+        fetchShiftPatterns(),
+        fetchConstraints(),
+        fetchShifts(),
+        fetchLeaveRequests()
       ])
 
-      const [
-        employeesData,
-        workplacesData,
-        shiftPatternsData,
-        constraintsData,
-        shiftsData,
-        leaveRequestsData
-      ] = await Promise.all([
-        employeesRes.json(),
-        workplacesRes.json(),
-        shiftPatternsRes.json(),
-        constraintsRes.json(),
-        shiftsRes.json(),
-        leaveRequestsRes.json()
-      ])
-
-      if (employeesData.success) setEmployees(employeesData.data)
-      if (workplacesData.success) setWorkplaces(workplacesData.data)
-      if (shiftPatternsData.success) setShiftPatterns(shiftPatternsData.data)
-      if (constraintsData.success) setConstraints(constraintsData.data)
-      if (shiftsData.success) setShifts(shiftsData.data)
-      if (leaveRequestsData.success) setLeaveRequests(leaveRequestsData.data)
+      if (employeesResult.success && employeesResult.data) setEmployees(employeesResult.data)
+      if (workplacesResult.success && workplacesResult.data) setWorkplaces(workplacesResult.data)
+      if (shiftPatternsResult.success && shiftPatternsResult.data) setShiftPatterns(shiftPatternsResult.data)
+      if (constraintsResult.success && constraintsResult.data) setConstraints(constraintsResult.data)
+      if (shiftsResult.success && shiftsResult.data) setShifts(shiftsResult.data)
+      if (leaveRequestsResult.success && leaveRequestsResult.data) setLeaveRequests(leaveRequestsResult.data)
     } catch (error) {
-      // エラーは無視（本番環境ではロギングサービスに送信することを推奨）
+      const message = error instanceof Error ? error.message : 'データの取得に失敗しました'
+      setRefreshError(message)
+      console.error('データ取得エラー:', error)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // 初回ロード時にデータを取得
+  // 認証状態が変わったらデータを取得/クリア
   useEffect(() => {
-    refreshAllData()
-  }, [refreshAllData])
+    if (isAuthenticated) {
+      refreshAllData()
+    } else {
+      // ログアウト時にデータをクリア
+      setShiftPatterns([])
+      setEmployees([])
+      setWorkplaces([])
+      setConstraints([])
+      setShifts([])
+      setLeaveRequests([])
+      setRefreshError(null)
+    }
+  }, [isAuthenticated, refreshAllData])
 
   // ==================== 従業員管理 ====================
 
   const addEmployee = useCallback(async (employeeData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/employees', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(employeeData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setEmployees((prev) => [...prev, result.data])
-      // アカウント情報も返す（新規作成時のみ）
-      return result.accountInfo || result.data
+    const result = await serverCreateEmployee(employeeData)
+    if (result.success && result.data) {
+      const employee = result.data.employee
+      setEmployees((prev) => [...prev, employee])
+      return result.data.accountInfo || employee
     }
-    throw new Error(result.error?.message || 'Failed to add employee')
+    throw new Error(result.error?.message || '従業員の追加に失敗しました')
   }, [])
 
   const updateEmployee = useCallback(async (id: string, updates: Partial<Employee>) => {
-    const res = await fetch('/api/employees', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    if (result.success) {
+    const result = await serverUpdateEmployee(id, updates)
+    if (result.success && result.data) {
       setEmployees((prev) =>
-        prev.map((emp) => (emp.id === id ? result.data : emp))
+        prev.map((emp) => (emp.id === id ? result.data! : emp))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update employee')
+      throw new Error(result.error?.message || '従業員の更新に失敗しました')
     }
   }, [])
 
   const deleteEmployee = useCallback(async (id: string) => {
-    const res = await fetch(`/api/employees?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteEmployee(id)
     if (result.success) {
       setEmployees((prev) => prev.filter((emp) => emp.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete employee')
+      throw new Error(result.error?.message || '従業員の削除に失敗しました')
     }
   }, [])
 
-  const getEmployeeById = useCallback(
-    (id: string) => {
-      return employees.find((emp) => emp.id === id)
-    },
-    [employees]
-  )
-
   const reorderEmployee = useCallback(async (employeeId: string, direction: 'up' | 'down') => {
-    const res = await fetch('/api/employees/reorder', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ employeeId, direction }),
-    })
-    const result = await res.json()
+    const result = await serverReorderEmployee(employeeId, direction)
     if (result.success) {
-      // データを再取得して最新の順序を反映
       await refreshAllData()
     } else {
-      throw new Error(result.error?.message || 'Failed to reorder employee')
+      throw new Error(result.error?.message || '従業員の並び替えに失敗しました')
     }
   }, [refreshAllData])
 
   // ==================== 配置場所管理 ====================
 
   const addWorkplace = useCallback(async (workplaceData: Omit<Workplace, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/workplaces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(workplaceData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setWorkplaces((prev) => [...prev, result.data])
+    const result = await serverCreateWorkplace(workplaceData)
+    if (result.success && result.data) {
+      setWorkplaces((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add workplace')
+    throw new Error(result.error?.message || '配置場所の追加に失敗しました')
   }, [])
 
   const updateWorkplace = useCallback(async (id: string, updates: Partial<Workplace>) => {
-    const res = await fetch('/api/workplaces', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    if (result.success) {
+    const result = await serverUpdateWorkplace(id, updates)
+    if (result.success && result.data) {
       setWorkplaces((prev) =>
-        prev.map((wp) => (wp.id === id ? result.data : wp))
+        prev.map((wp) => (wp.id === id ? result.data! : wp))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update workplace')
+      throw new Error(result.error?.message || '配置場所の更新に失敗しました')
     }
   }, [])
 
   const deleteWorkplace = useCallback(async (id: string) => {
-    const res = await fetch(`/api/workplaces?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteWorkplace(id)
     if (result.success) {
       setWorkplaces((prev) => prev.filter((wp) => wp.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete workplace')
+      throw new Error(result.error?.message || '配置場所の削除に失敗しました')
     }
   }, [])
-
-  const getWorkplaceById = useCallback(
-    (id: string) => {
-      return workplaces.find((wp) => wp.id === id)
-    },
-    [workplaces]
-  )
 
   // ==================== シフトパターン管理 ====================
 
   const addShiftPattern = useCallback(async (patternData: Omit<ShiftPattern, 'id'>) => {
-    const res = await fetch('/api/shift-patterns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patternData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setShiftPatterns((prev) => [...prev, result.data])
+    const result = await serverCreateShiftPattern(patternData)
+    if (result.success && result.data) {
+      setShiftPatterns((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add shift pattern')
+    throw new Error(result.error?.message || 'シフトパターンの追加に失敗しました')
   }, [])
 
   const updateShiftPattern = useCallback(async (id: string, updates: Partial<ShiftPattern>) => {
-    const res = await fetch('/api/shift-patterns', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    if (result.success) {
+    const result = await serverUpdateShiftPattern(id, updates)
+    if (result.success && result.data) {
       setShiftPatterns((prev) =>
-        prev.map((pattern) => (pattern.id === id ? result.data : pattern))
+        prev.map((pattern) => (pattern.id === id ? result.data! : pattern))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update shift pattern')
+      throw new Error(result.error?.message || 'シフトパターンの更新に失敗しました')
     }
   }, [])
 
   const deleteShiftPattern = useCallback(async (id: string) => {
-    const res = await fetch(`/api/shift-patterns?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteShiftPattern(id)
     if (result.success) {
       setShiftPatterns((prev) => prev.filter((pattern) => pattern.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete shift pattern')
+      throw new Error(result.error?.message || 'シフトパターンの削除に失敗しました')
     }
   }, [])
-
-  const getShiftPatternById = useCallback(
-    (id: string) => {
-      return shiftPatterns.find((pattern) => pattern.id === id)
-    },
-    [shiftPatterns]
-  )
 
   // ==================== シフト管理 ====================
 
   const addShift = useCallback(async (shiftData: Omit<Shift, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/shifts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(shiftData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setShifts((prev) => [...prev, result.data])
+    const result = await serverCreateShift(shiftData)
+    if (result.success && result.data) {
+      setShifts((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add shift')
+    throw new Error(result.error?.message || 'シフトの追加に失敗しました')
   }, [])
 
   const updateShift = useCallback(async (id: string, updates: Partial<Shift>) => {
-    const res = await fetch('/api/shifts', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    if (result.success) {
+    const result = await serverUpdateShift(id, updates)
+    if (result.success && result.data) {
       setShifts((prev) =>
-        prev.map((shift) => (shift.id === id ? result.data : shift))
+        prev.map((shift) => (shift.id === id ? result.data! : shift))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update shift')
+      throw new Error(result.error?.message || 'シフトの更新に失敗しました')
     }
   }, [])
 
   const deleteShift = useCallback(async (id: string) => {
-    const res = await fetch(`/api/shifts?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteShift(id)
     if (result.success) {
       setShifts((prev) => prev.filter((shift) => shift.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete shift')
+      throw new Error(result.error?.message || 'シフトの削除に失敗しました')
     }
   }, [])
 
-  const getShiftById = useCallback(
-    (id: string) => {
-      return shifts.find((shift) => shift.id === id)
-    },
-    [shifts]
-  )
-
-  const getShiftsByMonth = useCallback(
-    (year: number, month: number) => {
-      return shifts.filter((shift) => {
-        const shiftDate = new Date(shift.date)
-        return (
-          shiftDate.getFullYear() === year &&
-          shiftDate.getMonth() + 1 === month
-        )
-      })
-    },
-    [shifts]
-  )
-
-  const bulkUpsertShifts = useCallback(async (shiftsData: Omit<Shift, 'created_at' | 'updated_at'>[]) => {
-    // 一括でシフトを作成/更新
-    const promises = shiftsData.map(async (shiftData) => {
-      if (shiftData.id) {
-        // 更新
-        return updateShift(shiftData.id, shiftData)
-      } else {
-        // 新規作成
-        return addShift(shiftData)
-      }
-    })
-
-    await Promise.all(promises)
-  }, [])
-
   const generateShift = useCallback(async (targetMonth: string, specialRequests?: string) => {
-    const res = await fetch('/api/generate-shift', {
+    const res = await authFetch('/api/generate-shift', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -397,133 +350,75 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
         special_requests: specialRequests
       }),
     })
-    const result = await res.json()
-    if (result.success) {
-      // /api/generate-shift内で既にDBに保存済みなので、ここでは再保存しない
-      // ローカル状態を更新するため、データを再取得
+    const result: { success: boolean; data?: GenerateShiftResult; error?: { message: string } } = await res.json()
+    if (result.success && result.data) {
       await refreshAllData()
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to generate shift')
+    throw new Error(result.error?.message || 'シフト生成に失敗しました')
   }, [refreshAllData])
 
   // ==================== 希望休管理 ====================
 
   const addLeaveRequest = useCallback(async (leaveData: Omit<LeaveRequest, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/leave-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(leaveData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setLeaveRequests((prev) => [...prev, result.data])
+    const result = await serverCreateLeaveRequest(leaveData)
+    if (result.success && result.data) {
+      setLeaveRequests((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add leave request')
+    throw new Error(result.error?.message || '希望休の追加に失敗しました')
   }, [])
 
   const updateLeaveRequest = useCallback(async (id: string, updates: Partial<LeaveRequest>) => {
-    console.log('[updateLeaveRequest] Request:', { id, updates })
-    const res = await fetch('/api/leave-requests', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    console.log('[updateLeaveRequest] Response:', result)
-    if (result.success) {
+    const result = await serverUpdateLeaveRequest(id, updates)
+    if (result.success && result.data) {
       setLeaveRequests((prev) =>
-        prev.map((leave) => (leave.id === id ? result.data : leave))
+        prev.map((leave) => (leave.id === id ? result.data! : leave))
       )
     } else {
-      console.error('[updateLeaveRequest] Error:', result.error)
-      throw new Error(result.error?.message || 'Failed to update leave request')
+      throw new Error(result.error?.message || '希望休の更新に失敗しました')
     }
   }, [])
 
   const deleteLeaveRequest = useCallback(async (id: string) => {
-    const res = await fetch(`/api/leave-requests?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteLeaveRequest(id)
     if (result.success) {
       setLeaveRequests((prev) => prev.filter((leave) => leave.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete leave request')
+      throw new Error(result.error?.message || '希望休の削除に失敗しました')
     }
   }, [])
-
-  const getLeaveRequestById = useCallback(
-    (id: string) => {
-      return leaveRequests.find((leave) => leave.id === id)
-    },
-    [leaveRequests]
-  )
-
-  const getLeaveRequestsByMonth = useCallback(
-    (year: number, month: number) => {
-      return leaveRequests.filter((leave) => {
-        const leaveDate = new Date(leave.date)
-        return (
-          leaveDate.getFullYear() === year &&
-          leaveDate.getMonth() + 1 === month
-        )
-      })
-    },
-    [leaveRequests]
-  )
 
   // ==================== 制約管理 ====================
 
   const addConstraint = useCallback(async (constraintData: Omit<AIConstraintGuideline, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await fetch('/api/constraints', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(constraintData),
-    })
-    const result = await res.json()
-    if (result.success) {
-      setConstraints((prev) => [...prev, result.data])
+    const result = await serverCreateConstraint(constraintData)
+    if (result.success && result.data) {
+      setConstraints((prev) => [...prev, result.data!])
       return result.data
     }
-    throw new Error(result.error?.message || 'Failed to add constraint')
+    throw new Error(result.error?.message || '制約条件の追加に失敗しました')
   }, [])
 
   const updateConstraint = useCallback(async (id: string, updates: Partial<AIConstraintGuideline>) => {
-    const res = await fetch('/api/constraints', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...updates }),
-    })
-    const result = await res.json()
-    if (result.success) {
+    const result = await serverUpdateConstraint(id, updates)
+    if (result.success && result.data) {
       setConstraints((prev) =>
-        prev.map((constraint) => (constraint.id === id ? result.data : constraint))
+        prev.map((constraint) => (constraint.id === id ? result.data! : constraint))
       )
     } else {
-      throw new Error(result.error?.message || 'Failed to update constraint')
+      throw new Error(result.error?.message || '制約条件の更新に失敗しました')
     }
   }, [])
 
   const deleteConstraint = useCallback(async (id: string) => {
-    const res = await fetch(`/api/constraints?id=${id}`, {
-      method: 'DELETE',
-    })
-    const result = await res.json()
+    const result = await serverDeleteConstraint(id)
     if (result.success) {
       setConstraints((prev) => prev.filter((constraint) => constraint.id !== id))
     } else {
-      throw new Error(result.error?.message || 'Failed to delete constraint')
+      throw new Error(result.error?.message || '制約条件の削除に失敗しました')
     }
   }, [])
-
-  const getConstraintById = useCallback(
-    (id: string) => {
-      return constraints.find((constraint) => constraint.id === id)
-    },
-    [constraints]
-  )
 
   // ==================== Context値 ====================
 
@@ -536,35 +431,27 @@ export function ShiftDataProvider({ children }: { children: ReactNode }) {
     constraints,
     loading,
     setLoading,
+    refreshError,
     addEmployee,
     updateEmployee,
     deleteEmployee,
-    getEmployeeById,
     reorderEmployee,
     addWorkplace,
     updateWorkplace,
     deleteWorkplace,
-    getWorkplaceById,
     addShiftPattern,
     updateShiftPattern,
     deleteShiftPattern,
-    getShiftPatternById,
     addShift,
     updateShift,
     deleteShift,
-    getShiftById,
-    getShiftsByMonth,
-    bulkUpsertShifts,
     generateShift,
     addLeaveRequest,
     updateLeaveRequest,
     deleteLeaveRequest,
-    getLeaveRequestById,
-    getLeaveRequestsByMonth,
     addConstraint,
     updateConstraint,
     deleteConstraint,
-    getConstraintById,
     refreshAllData,
   }
 

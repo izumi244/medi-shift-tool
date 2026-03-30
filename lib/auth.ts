@@ -78,15 +78,20 @@ export async function verifySession(sessionToken: string) {
 
     if (error || !data || !data.session_token) return null
 
-    const isDeveloper = data.is_system_account && data.employee_number === 'admin123'
+    // DBのroleカラムを優先、なければis_system_accountから計算（フォールバック）
+    const resolvedRole = data.role
+      ? data.role
+      : data.is_system_account
+        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        : 'employee'
 
     return {
       id: data.id,
       user_id: data.employee_number || '',
+      employee_number: data.employee_number || '',
       name: data.name,
-      role: data.is_system_account ?
-        (isDeveloper ? 'developer' : 'admin') :
-        'employee',
+      role: resolvedRole,
+      password_changed: data.password_changed ?? false,
       created_at: data.created_at,
       last_login: data.last_login
     }
@@ -101,10 +106,8 @@ export async function verifySession(sessionToken: string) {
 /**
  * ログイン処理
  */
-export async function authenticate(credentials: LoginCredentials): Promise<User | null> {
+export async function authenticate(credentials: LoginCredentials): Promise<{ user: User; session_token: string } | null> {
   try {
-    console.log(`ログイン試行: ${credentials.user_id}`)
-
     const supabase = createServerSupabaseClient()
 
     // 従業員番号で検索
@@ -113,8 +116,6 @@ export async function authenticate(credentials: LoginCredentials): Promise<User 
       .select('*')
       .eq('employee_number', credentials.user_id)
       .single()
-
-    console.log(`データベース結果:`, { data, error })
 
     if (error || !data) {
       throw new Error('ユーザーIDが見つかりません')
@@ -146,20 +147,26 @@ export async function authenticate(credentials: LoginCredentials): Promise<User 
 
     if (updateError) throw updateError
 
-    const isDeveloper = data.is_system_account && data.employee_number === 'admin123'
+    // DBのroleカラムを優先、なければis_system_accountから計算（フォールバック）
+    const resolvedRole = data.role
+      ? data.role
+      : data.is_system_account
+        ? (data.employee_number === 'admin123' ? 'developer' : 'admin')
+        : 'employee'
 
-    // ユーザー情報を返す
+    // ユーザー情報とセッショントークンを返す
     return {
-      id: data.id,
-      user_id: data.employee_number || '',
-      employee_number: data.employee_number || '',
-      name: data.name,
-      role: data.is_system_account ?
-        (isDeveloper ? 'developer' : 'admin') :
-        'employee',
-      password_changed: data.password_changed || false,
-      created_at: data.created_at,
-      last_login: data.last_login
+      user: {
+        id: data.id,
+        user_id: data.employee_number || '',
+        employee_number: data.employee_number || '',
+        name: data.name,
+        role: resolvedRole,
+        password_changed: data.password_changed || false,
+        created_at: data.created_at,
+        last_login: data.last_login
+      },
+      session_token: sessionToken
     }
   } catch (error) {
     console.error('ログインエラー:', error)
@@ -193,10 +200,6 @@ export async function logout(sessionToken: string) {
  */
 export async function changePassword(employeeNumber: string, newPassword: string) {
   try {
-    console.log('=== changePassword デバッグ ===')
-    console.log('employeeNumber:', employeeNumber)
-    console.log('newPassword:', newPassword)
-
     // パラメータ検証
     if (!employeeNumber) {
       throw new Error('従業員番号が指定されていません')
@@ -210,12 +213,9 @@ export async function changePassword(employeeNumber: string, newPassword: string
       throw new Error(`パスワードの型が正しくありません: ${typeof newPassword}`)
     }
 
-    console.log('パスワードハッシュ化開始...')
     const hashedPassword = await hashPassword(newPassword)
-    console.log('パスワードハッシュ化完了')
 
     const supabase = createServerSupabaseClient()
-    console.log('データベース更新開始...')
     const { error } = await supabase
       .from('employees')
       .update({
@@ -226,11 +226,8 @@ export async function changePassword(employeeNumber: string, newPassword: string
       .eq('employee_number', employeeNumber)
 
     if (error) {
-      console.log('データベース更新エラー:', error)
       throw error
     }
-
-    console.log('パスワード変更成功')
   } catch (error) {
     console.error('パスワード変更エラー:', error)
     throw error
@@ -368,26 +365,6 @@ export async function createEmployeeAccount(employeeData: {
 }
 
 // ==================== バリデーション ====================
-
-/**
- * ユーザーIDの形式チェック
- */
-export function validateUserId(userId: string): boolean {
-  // emp001形式または admin123形式
-  const empPattern = /^emp[0-9]{3}$/
-  const adminPattern = /^admin[0-9]{3}$/
-  return empPattern.test(userId) || adminPattern.test(userId)
-}
-
-/**
- * パスワードの形式チェック
- */
-export function validatePassword(password: string): boolean {
-  // 英字5文字+数字3桁 または admin123形式
-  const pattern = /^[a-z]{5}[0-9]{3}$/
-  const adminPattern = /^admin[0-9]{3}$/
-  return pattern.test(password) || adminPattern.test(password)
-}
 
 /**
  * 新しいパスワードの強度チェック（ユーザーが変更する際）

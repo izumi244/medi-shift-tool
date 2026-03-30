@@ -20,9 +20,10 @@ import {
 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useModalManager } from '@/hooks/useModalManager';
+import { resetPassword } from '@/app/actions/employees';
 import type { Employee, EmploymentType, JobType, EmployeeAccountInfo } from '@/types';
 import { employmentTypeColors } from '@/lib/colors';
-import { WORKDAYS, JOB_TYPE_ICONS } from '@/lib/constants';
+import { WORKDAYS, JOB_TYPE_ICONS, EMPLOYMENT_TYPES, JOB_TYPES, FACILITY_TYPES } from '@/lib/constants';
 
 type EmployeeFormData = {
   name: string;
@@ -38,6 +39,7 @@ const EmployeePage: React.FC = () => {
   const { employees, shiftPatterns, workplaces, addEmployee, updateEmployee, deleteEmployee: deleteEmployeeFromContext, reorderEmployee } = useShiftData();
 
   const [searchText, setSearchText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // アカウント情報モーダル用の状態
   const [showAccountInfo, setShowAccountInfo] = useState(false);
@@ -63,8 +65,8 @@ const EmployeePage: React.FC = () => {
 
   const getInitialFormData = useCallback((): EmployeeFormData => ({
     name: '',
-    employment_type: '常勤' as EmploymentType,
-    job_type: '看護師' as JobType,
+    employment_type: EMPLOYMENT_TYPES.FULL_TIME as EmploymentType,
+    job_type: JOB_TYPES.NURSE as JobType,
     available_days: [],
     assignable_workplaces_by_day: {},
     assignable_shift_pattern_ids: [],
@@ -96,29 +98,37 @@ const EmployeePage: React.FC = () => {
 
   const getAvailableFacilitiesForDay = (day: string) => {
     if (day === '水') {
-      return facilityOptions.filter(f => f.category === '健診棟');
+      return facilityOptions.filter(f => f.category === FACILITY_TYPES.HEALTH_CHECK);
     }
     return facilityOptions;
   };
 
   const saveEmployee = async () => {
-    if (editingEmployee) {
-      // 更新の場合
-      await updateEmployee(editingEmployee.id, formData);
-      closeModal();
-    } else {
-      // 新規追加の場合（アカウント情報を取得）
-      const newAccountInfo = await addEmployee({
-        ...formData,
-        is_active: true
-      });
+    setIsSaving(true);
+    try {
+      if (editingEmployee) {
+        // 更新の場合
+        await updateEmployee(editingEmployee.id, formData);
+        closeModal();
+      } else {
+        // 新規追加の場合（アカウント情報を取得）
+        const newAccountInfo = await addEmployee({
+          ...formData,
+          is_active: true
+        });
 
-      // アカウント情報モーダルを表示
-      if (newAccountInfo && 'initial_password' in newAccountInfo) {
-        setAccountInfo(newAccountInfo as EmployeeAccountInfo);
-        setShowAccountInfo(true);
+        // アカウント情報モーダルを表示
+        if (newAccountInfo && 'initial_password' in newAccountInfo) {
+          setAccountInfo(newAccountInfo as EmployeeAccountInfo);
+          setShowAccountInfo(true);
+        }
+        closeModal();
       }
-      closeModal();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '従業員の保存に失敗しました';
+      alert(message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -136,9 +146,38 @@ const EmployeePage: React.FC = () => {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // パスワードリセット
+  const handleResetPassword = async (employee: Employee) => {
+    if (!employee.employee_number) return;
+    if (!confirm(`${employee.name}のパスワードをリセットしますか？`)) return;
+
+    try {
+      const result = await resetPassword(employee.employee_number);
+      if (result.success && result.data) {
+        setAccountInfo({
+          employee_id: employee.id,
+          employee_number: result.data.employee_number,
+          initial_password: result.data.new_password,
+          created_at: new Date().toISOString()
+        });
+        setShowAccountInfo(true);
+      } else {
+        alert(result.error?.message || 'パスワードリセットに失敗しました');
+      }
+    } catch (error) {
+      console.error('パスワードリセットエラー:', error);
+      alert('パスワードリセットに失敗しました');
+    }
+  };
+
   const handleDeleteEmployee = async (id: string) => {
     if (confirm('この従業員を削除しますか？')) {
-      await deleteEmployeeFromContext(id);
+      try {
+        await deleteEmployeeFromContext(id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '従業員の削除に失敗しました';
+        alert(message);
+      }
     }
   };
 
@@ -146,7 +185,7 @@ const EmployeePage: React.FC = () => {
     try {
       await reorderEmployee(id, direction);
     } catch (error) {
-      console.error('Failed to reorder employee:', error);
+      console.error('従業員の並び替えエラー:', error);
       alert('並び順の変更に失敗しました');
     }
   };
@@ -286,6 +325,15 @@ const EmployeePage: React.FC = () => {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {employee.employee_number && !employee.is_system_account && (
+                        <button
+                          onClick={() => handleResetPassword(employee)}
+                          className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                          title="パスワードリセット"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteEmployee(employee.id)}
                         className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
@@ -325,17 +373,17 @@ const EmployeePage: React.FC = () => {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">雇用形態 <span className="text-red-500">*</span></label>
                     <select value={formData.employment_type} onChange={(e) => setFormData(prev => ({ ...prev, employment_type: e.target.value as EmploymentType }))} className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800">
-                      <option value="常勤">常勤</option>
-                      <option value="パート">パート</option>
+                      <option value={EMPLOYMENT_TYPES.FULL_TIME}>常勤</option>
+                      <option value={EMPLOYMENT_TYPES.PART_TIME}>パート</option>
                     </select>
                   </div>
                 </div>
                 <div className="mt-3">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">職種 <span className="text-red-500">*</span></label>
                   <select value={formData.job_type} onChange={(e) => setFormData(prev => ({ ...prev, job_type: e.target.value as JobType }))} className="w-full p-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-colors text-gray-800">
-                    <option value="看護師">看護師</option>
-                    <option value="臨床検査技師">臨床検査技師</option>
-                    <option value="看護助手">看護助手</option>
+                    <option value={JOB_TYPES.NURSE}>看護師</option>
+                    <option value={JOB_TYPES.CLINICAL_TECH}>臨床検査技師</option>
+                    <option value={JOB_TYPES.NURSE_ASSISTANT}>看護助手</option>
                   </select>
                 </div>
               </div>
@@ -359,22 +407,30 @@ const EmployeePage: React.FC = () => {
 
               <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
                 <h4 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><RefreshCw className="w-5 h-5" />勤務制約</h4>
-                <label className="flex items-center gap-2 p-3 rounded-lg cursor-pointer border-2 bg-white">
-                  <input
-                    type="checkbox"
-                    checked={formData.day_constraints.some(c => c.if === '水' && c.then === '木')}
-                    onChange={() => {
-                      const rule = { if: '水', then: '木' };
-                      const hasRule = formData.day_constraints.some(c => c.if === rule.if && c.then === rule.then);
-                      const newConstraints = hasRule
-                        ? formData.day_constraints.filter(c => c.if !== rule.if || c.then !== rule.then)
-                        : [...formData.day_constraints, rule];
-                      setFormData(prev => ({ ...prev, day_constraints: newConstraints }));
-                    }}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                  />
-                  <span className="font-medium text-gray-700">水曜に出勤した場合、木曜は必ず休み</span>
-                </label>
+                <div className="space-y-2">
+                  {WORKDAYS.map((dayIf) => {
+                    const dayThenIndex = WORKDAYS.indexOf(dayIf) + 1;
+                    if (dayThenIndex >= WORKDAYS.length) return null;
+                    const dayThen = WORKDAYS[dayThenIndex];
+                    const hasRule = formData.day_constraints.some(c => c.if === dayIf && c.then === dayThen);
+                    return (
+                      <label key={`${dayIf}-${dayThen}`} className="flex items-center gap-2 p-3 rounded-lg cursor-pointer border-2 bg-white">
+                        <input
+                          type="checkbox"
+                          checked={hasRule}
+                          onChange={() => {
+                            const newConstraints = hasRule
+                              ? formData.day_constraints.filter(c => c.if !== dayIf || c.then !== dayThen)
+                              : [...formData.day_constraints, { if: dayIf, then: dayThen }];
+                            setFormData(prev => ({ ...prev, day_constraints: newConstraints }));
+                          }}
+                          className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span className="font-medium text-gray-700">{dayIf}曜に出勤した場合、{dayThen}曜は必ず休み</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
@@ -392,7 +448,7 @@ const EmployeePage: React.FC = () => {
                         <div className="ml-7">
                           <div className="text-xs font-medium text-gray-600 mb-1">クリニック棟</div>
                           <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
-                            {facilityOptions.filter(f => f.category === 'クリニック棟').map((facility) => (
+                            {facilityOptions.filter(f => f.category === FACILITY_TYPES.CLINIC).map((facility) => (
                               <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
                                 <input type="checkbox" checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false} onChange={(e) => { const dayWorkplaces = formData.assignable_workplaces_by_day[day] || []; const newDayWorkplaces = e.target.checked ? [...dayWorkplaces, facility.value] : dayWorkplaces.filter(w => w !== facility.value); setFormData(prev => ({ ...prev, assignable_workplaces_by_day: { ...prev.assignable_workplaces_by_day, [day]: newDayWorkplaces } })); }} className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200" disabled={day === '水'} />
                                 <span className={`text-gray-700 ${day === '水' ? 'text-gray-400' : ''}`}>{facility.label}</span>
@@ -401,7 +457,7 @@ const EmployeePage: React.FC = () => {
                           </div>
                           <div className="text-xs font-medium text-gray-600 mt-2 mb-1">健診棟</div>
                           <div className="grid grid-cols-3 md:grid-cols-5 gap-1">
-                            {facilityOptions.filter(f => f.category === '健診棟').map((facility) => (
+                            {facilityOptions.filter(f => f.category === FACILITY_TYPES.HEALTH_CHECK).map((facility) => (
                               <label key={`${day}-${facility.value}`} className="flex items-center gap-1 cursor-pointer text-xs">
                                 <input type="checkbox" checked={formData.assignable_workplaces_by_day[day]?.includes(facility.value) || false} onChange={(e) => { const dayWorkplaces = formData.assignable_workplaces_by_day[day] || []; const newDayWorkplaces = e.target.checked ? [...dayWorkplaces, facility.value] : dayWorkplaces.filter(w => w !== facility.value); setFormData(prev => ({ ...prev, assignable_workplaces_by_day: { ...prev.assignable_workplaces_by_day, [day]: newDayWorkplaces } })); }} className="w-3 h-3 text-indigo-600 border-gray-300 rounded focus:ring-indigo-200" />
                                 <span className="text-gray-700">{facility.label}</span>
@@ -417,7 +473,7 @@ const EmployeePage: React.FC = () => {
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button type="button" onClick={closeModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors">キャンセル</button>
-                <button type="button" onClick={saveEmployee} disabled={!formData.name} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{editingEmployee ? '更新' : '追加'}</button>
+                <button type="button" onClick={saveEmployee} disabled={!formData.name || isSaving} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold transition-all duration-300">{isSaving ? '保存中...' : (editingEmployee ? '更新' : '追加')}</button>
               </div>
             </form>
           </div>

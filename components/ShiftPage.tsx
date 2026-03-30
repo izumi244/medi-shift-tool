@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit3, Download, RefreshCw, ClipboardList, X, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Download, ClipboardList, X, Trash2 } from 'lucide-react';
 import { useShiftData } from '@/contexts/ShiftDataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ShiftPattern, Employee } from '@/types';
+import type { Employee, Workplace } from '@/types';
+import { REQUEST_STATUS, LEAVE_TYPES, LEAVE_TYPES_MASKED } from '@/lib/constants';
 
 // --- Component-Specific Types ---
 interface ShiftAssignment {
@@ -26,7 +27,7 @@ interface ShiftData {
 // --- Main Component ---
 const ShiftPage: React.FC = () => {
   const { user } = useAuth();
-  const { employees, shiftPatterns, shifts, leaveRequests, addShift, updateShift, deleteShift } = useShiftData();
+  const { employees, shiftPatterns, shifts, leaveRequests, workplaces, addShift, updateShift, deleteShift } = useShiftData();
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -36,17 +37,36 @@ const ShiftPage: React.FC = () => {
   // 従業員モードかどうか
   const isEmployee = user?.role === 'employee';
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string} | null>(null);
+  const [editingCell, setEditingCell] = useState<{employeeId: string, day: number, employeeName: string, dayOfWeek: string} | null>(null);
 
-  const [editValues, setEditValues] = useState({
-    editType: 'pattern' as 'pattern' | 'custom' | 'rest',
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [editValues, setEditValues] = useState<{
+    editType: 'pattern' | 'custom' | 'rest';
+    am: string;
+    pm: string;
+    patternId: string;
+    customStartTime: string;
+    customEndTime: string;
+    restReason: string;
+  }>({
+    editType: 'pattern',
     am: '',
     pm: '',
     patternId: '',
     customStartTime: '',
     customEndTime: '',
-    restReason: '休み'
+    restReason: LEAVE_TYPES_MASKED
   });
+
+  // 配置場所ID→名前のマッピング（IDベースの名前解決用）
+  const workplaceIdToName = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    workplaces.forEach((wp: Workplace) => {
+      map[wp.id] = wp.name;
+    });
+    return map;
+  }, [workplaces]);
 
   // shiftsデータをShiftData形式に変換（承認済み希望休を含む）
   const shiftData = React.useMemo(() => {
@@ -66,9 +86,17 @@ const ShiftPage: React.FC = () => {
           data[shift.employee_id] = {};
         }
 
+        // IDがあればIDから名前解決、なければ従来のam_workplace/pm_workplaceを使用
+        const amName = shift.am_workplace_id
+          ? (workplaceIdToName[shift.am_workplace_id] || shift.am_workplace || undefined)
+          : (shift.am_workplace || undefined);
+        const pmName = shift.pm_workplace_id
+          ? (workplaceIdToName[shift.pm_workplace_id] || shift.pm_workplace || undefined)
+          : (shift.pm_workplace || undefined);
+
         data[shift.employee_id][day] = {
-          am: shift.am_workplace || undefined,
-          pm: shift.pm_workplace || undefined,
+          am: amName,
+          pm: pmName,
           patternId: shift.shift_pattern_id || undefined,
           customStartTime: shift.custom_start_time || undefined,
           customEndTime: shift.custom_end_time || undefined,
@@ -80,7 +108,7 @@ const ShiftPage: React.FC = () => {
 
     // 承認済み希望休を追加（既存シフトがない場合のみ）
     leaveRequests.forEach(leave => {
-      if (leave.status === '承認') {
+      if (leave.status === REQUEST_STATUS.APPROVED) {
         const leaveDate = new Date(leave.date);
 
         // 現在表示中の月の承認済み希望休のみ含める
@@ -94,7 +122,7 @@ const ShiftPage: React.FC = () => {
           // 既存のシフトがない場合のみ希望休を表示
           if (!data[leave.employee_id][day]) {
             // 出勤可能申請は休みではない
-            if (leave.leave_type === '出勤可能') {
+            if (leave.leave_type === LEAVE_TYPES.AVAILABLE) {
               data[leave.employee_id][day] = {
                 isRest: false,
                 restReason: leave.leave_type // 表示用に保持
@@ -112,14 +140,14 @@ const ShiftPage: React.FC = () => {
     });
 
     return data;
-  }, [shifts, leaveRequests, currentDate]);
+  }, [shifts, leaveRequests, currentDate, workplaceIdToName]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthName = currentDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long' });
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const generateDays = () => {
+  const days = React.useMemo(() => {
     const daysArray = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
@@ -127,10 +155,9 @@ const ShiftPage: React.FC = () => {
       daysArray.push({ day, dayOfWeek, isWednesday: dayOfWeek === '水', isSunday: dayOfWeek === '日' });
     }
     return daysArray;
-  };
-  const days = generateDays();
+  }, [year, month, daysInMonth]);
 
-  const handleCellClick = (employeeId: string, day: number, employeeName: string) => {
+  const handleCellClick = React.useCallback((employeeId: string, day: number, employeeName: string) => {
     if (!editMode) return;
 
     // --- Day Constraint Validation ---
@@ -157,7 +184,9 @@ const ShiftPage: React.FC = () => {
     // --- End Validation ---
     
     const shift = shiftData[employeeId]?.[day];
-    setEditingCell({employeeId, day, employeeName});
+    const clickedDate = new Date(year, month, day);
+    const dayOfWeekStr = clickedDate.toLocaleDateString('ja-JP', { weekday: 'short' }) as string;
+    setEditingCell({employeeId, day, employeeName, dayOfWeek: dayOfWeekStr});
 
     let editType: 'pattern' | 'custom' | 'rest' = 'pattern';
     if (shift?.isRest) editType = 'rest';
@@ -170,13 +199,14 @@ const ShiftPage: React.FC = () => {
       patternId: shift?.patternId || '',
       customStartTime: shift?.customStartTime || '',
       customEndTime: shift?.customEndTime || '',
-      restReason: shift?.restReason || '休み'
+      restReason: shift?.restReason || LEAVE_TYPES_MASKED
     });
     setIsEditModalOpen(true);
-  };
+  }, [editMode, employees, days, shiftData, year, month]);
 
   const handleSaveEdit = async () => {
     if (!editingCell) return;
+    setIsSaving(true);
     const { employeeId, day } = editingCell;
 
     const year = currentDate.getFullYear();
@@ -215,6 +245,8 @@ const ShiftPage: React.FC = () => {
     } catch (error) {
       console.error('シフト保存エラー:', error);
       alert('シフトの保存に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -223,6 +255,7 @@ const ShiftPage: React.FC = () => {
 
     if (!confirm('このシフトを削除しますか？')) return;
 
+    setIsSaving(true);
     const { employeeId, day } = editingCell;
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -238,6 +271,7 @@ const ShiftPage: React.FC = () => {
 
     if (!existingShift) {
       alert('削除対象のシフトが見つかりません');
+      setIsSaving(false);
       return;
     }
 
@@ -247,6 +281,8 @@ const ShiftPage: React.FC = () => {
     } catch (error) {
       console.error('シフト削除エラー:', error);
       alert('シフトの削除に失敗しました');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -267,7 +303,7 @@ const ShiftPage: React.FC = () => {
   };
 
   const getShiftTimeLabel = (shift: ShiftAssignment): string => {
-    if (shift.isRest) return shift.restReason || '休み';
+    if (shift.isRest) return shift.restReason || LEAVE_TYPES_MASKED;
     if (shift.patternId) {
       const pattern = shiftPatterns.find(p => p.id === shift.patternId);
       return pattern ? `${formatTime(pattern.start_time)}~${formatTime(pattern.end_time)}` : '不明';
@@ -282,7 +318,7 @@ const ShiftPage: React.FC = () => {
     const shift = shiftData[employee.id]?.[day];
 
     // 出勤可能申請がある場合は背景色を変更
-    const isAvailableToWork = shift?.restReason === '出勤可能' && !shift.isRest;
+    const isAvailableToWork = shift?.restReason === LEAVE_TYPES.AVAILABLE && !shift.isRest;
     const baseCellClass = `border-r border-gray-200 h-20 p-0.5 align-top ${dayInfo.isSunday ? 'bg-pink-50' : dayInfo.isWednesday ? 'bg-green-50' : ''} ${editMode ? 'cursor-pointer hover:bg-yellow-100' : ''}`;
     const cellClass = isAvailableToWork ? `${baseCellClass} bg-cyan-50` : baseCellClass;
 
@@ -324,20 +360,21 @@ const ShiftPage: React.FC = () => {
                 <button onClick={() => changeMonth('next')} className="p-2 rounded-md hover:bg-gray-100"><ChevronRight className="w-5 h-5 text-gray-600" /></button>
             </div>
             <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditMode(!editMode)}
-                  disabled={isEmployee}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    isEmployee
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : editMode
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  <Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
+                {!isEmployee && (
+                  <>
+                    <button
+                      onClick={() => setEditMode(!editMode)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        editMode
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      <Edit3 className="w-4 h-4" />{editMode ? '編集中' : '編集'}
+                    </button>
+                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors"><Download className="w-4 h-4" />PDF</button>
+                  </>
+                )}
             </div>
         </div>
 
@@ -380,20 +417,44 @@ const ShiftPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午前配置</label>
-                      <input type="text" value={editValues.am} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: D, 処" />
+                      {(() => {
+                        const emp = employees.find(e => e.id === editingCell.employeeId);
+                        const assignable = emp?.assignable_workplaces_by_day?.[editingCell.dayOfWeek] || [];
+                        const amOptions = workplaces.filter(wp => wp.is_active && wp.time_slot === 'AM' && wp.day_of_week === editingCell.dayOfWeek && (assignable.length === 0 || assignable.includes(wp.name)));
+                        return (
+                          <select value={amOptions.some(wp => wp.name === editValues.am) ? editValues.am : ''} onChange={(e) => setEditValues(prev => ({ ...prev, am: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                            <option value="">選択なし</option>
+                            {amOptions.map(wp => (
+                              <option key={wp.id} value={wp.name}>{wp.name}</option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                   </div>
                   <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">午後配置</label>
-                      <input type="text" value={editValues.pm} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl" placeholder="例: 処, 健診" />
+                      {(() => {
+                        const emp = employees.find(e => e.id === editingCell.employeeId);
+                        const assignable = emp?.assignable_workplaces_by_day?.[editingCell.dayOfWeek] || [];
+                        const pmOptions = workplaces.filter(wp => wp.is_active && wp.time_slot === 'PM' && wp.day_of_week === editingCell.dayOfWeek && (assignable.length === 0 || assignable.includes(wp.name)));
+                        return (
+                          <select value={pmOptions.some(wp => wp.name === editValues.pm) ? editValues.pm : ''} onChange={(e) => setEditValues(prev => ({ ...prev, pm: e.target.value }))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
+                            <option value="">選択なし</option>
+                            {pmOptions.map(wp => (
+                              <option key={wp.id} value={wp.name}>{wp.name}</option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                   </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">勤務タイプ</label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2"><input type="radio" value="pattern" checked={editValues.editType === 'pattern'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />パターン</label>
-                  <label className="flex items-center gap-2"><input type="radio" value="custom" checked={editValues.editType === 'custom'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />直接入力</label>
-                  <label className="flex items-center gap-2"><input type="radio" value="rest" checked={editValues.editType === 'rest'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as any}))} className="w-4 h-4" />休み</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="pattern" checked={editValues.editType === 'pattern'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />パ���ーン</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="custom" checked={editValues.editType === 'custom'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />直接入力</label>
+                  <label className="flex items-center gap-2"><input type="radio" value="rest" checked={editValues.editType === 'rest'} onChange={(e) => setEditValues(p => ({...p, editType: e.target.value as 'pattern' | 'custom' | 'rest'}))} className="w-4 h-4" />休み</label>
                 </div>
               </div>
 
@@ -426,20 +487,20 @@ const ShiftPage: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">理由</label>
                   <select value={editValues.restReason} onChange={(e) => setEditValues(p => ({...p, restReason: e.target.value}))} className="w-full p-3 border-2 border-gray-200 rounded-xl">
-                    <option>休み</option>
-                    <option>有休</option>
-                    <option>希望休</option>
+                    <option value={LEAVE_TYPES_MASKED}>{LEAVE_TYPES_MASKED}</option>
+                    <option value={LEAVE_TYPES.PAID_LEAVE}>{LEAVE_TYPES.PAID_LEAVE}</option>
+                    <option value={LEAVE_TYPES.HOPE_REST}>{LEAVE_TYPES.HOPE_REST}</option>
                   </select>
                 </div>
               )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold">キャンセル</button>
-                <button type="button" onClick={handleDeleteShift} className="py-3 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2">
+                <button type="button" onClick={handleCloseModal} disabled={isSaving} className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold disabled:opacity-50">キャンセル</button>
+                <button type="button" onClick={handleDeleteShift} disabled={isSaving} className="py-3 px-4 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded-xl font-semibold flex items-center gap-2">
                   <Trash2 size={18} />
-                  削除
+                  {isSaving ? '処理中...' : '削除'}
                 </button>
-                <button type="button" onClick={handleSaveEdit} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold">保存</button>
+                <button type="button" onClick={handleSaveEdit} disabled={isSaving} className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 disabled:from-gray-400 disabled:to-gray-400 text-white rounded-xl font-semibold">{isSaving ? '保存中...' : '保存'}</button>
               </div>
             </form>
           </div>

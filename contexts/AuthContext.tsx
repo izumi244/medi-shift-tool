@@ -48,8 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(result.error?.message || '認証に失敗しました')
       }
 
-      const user = result.data as User
-      const session = createSession(user, credentials.remember_me)
+      const user = result.data.user as User
+      const sessionToken = result.data.session_token as string
+      const session = createSession(user, credentials.remember_me, sessionToken)
       saveSession(session)
 
       setAuthState({
@@ -64,6 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const handleLogout = async () => {
+    // サーバー側のセッション無効化 + cookie削除
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // ネットワークエラーでもクライアント側はログアウトする
+    }
     clearSession()
     setAuthState({
       user: null,

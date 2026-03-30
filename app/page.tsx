@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthGuard from '@/components/AuthGuard'
 import MainLayout from '@/components/MainLayout'
+import EmployeeDashboard from '@/components/employee/EmployeeDashboard'
 
 export default function HomePage() {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -35,6 +36,16 @@ export default function HomePage() {
     )
   }
 
+  // 従業員ロールの場合は専用ダッシュボードを表示
+  if (user?.role === 'employee') {
+    return (
+      <AuthGuard>
+        <EmployeeDashboard />
+      </AuthGuard>
+    )
+  }
+
+  // 管理者・開発者の場合は従来のレイアウトを表示
   return (
     <AuthGuard>
       <MainLayout />

@@ -148,9 +148,6 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
 
     if (onNavigate) {
       onNavigate(cardId)
-    } else {
-      console.log(`Navigate to ${cardId}`)
-      alert(`${cardId}ページに遷移します（実装予定）`)
     }
   }
 
@@ -164,16 +161,31 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
 
     try {
       // Dify Workflow APIを使ってシフトを生成
-      console.log('シフト生成開始:', targetMonth)
-      console.log('特別要望:', specialRequests || 'なし')
-
       const result = await generateShift(targetMonth, specialRequests || undefined)
 
-      console.log('シフト生成結果:', result)
-      console.log('生成されたシフト数:', result.shifts?.length || 0)
-
       if (result.shifts && result.shifts.length > 0) {
-        alert(`${targetMonth}のシフトを作成しました！\n生成されたシフト数: ${result.shifts.length}`)
+        let message = `${targetMonth}のシフトを作成しました！\n有効シフト数: ${result.shifts.length}`
+
+        // ドロップレポートの表示
+        if (result.summary) {
+          const { total_generated, dropped, drop_reasons } = result.summary
+          if (dropped > 0) {
+            message += `\n\nAI生成数: ${total_generated}件 → 有効: ${result.shifts.length}件（${dropped}件除外）`
+            const reasons: string[] = []
+            if (drop_reasons?.missing_fields > 0) reasons.push(`必須項目不足: ${drop_reasons.missing_fields}件`)
+            if (drop_reasons?.invalid_date > 0) reasons.push(`無効な日付: ${drop_reasons.invalid_date}件`)
+            if (drop_reasons?.out_of_range > 0) reasons.push(`対象月外: ${drop_reasons.out_of_range}件`)
+            if (drop_reasons?.unknown_employee > 0) reasons.push(`不明な従業員: ${drop_reasons.unknown_employee}件`)
+            if (drop_reasons?.unavailable_day > 0) reasons.push(`勤務不可日: ${drop_reasons.unavailable_day}件`)
+            if (drop_reasons?.invalid_pattern > 0) reasons.push(`未許可シフトパターン: ${drop_reasons.invalid_pattern}件`)
+            if (drop_reasons?.invalid_workplace > 0) reasons.push(`未許可配置場所: ${drop_reasons.invalid_workplace}件`)
+            if (drop_reasons?.leave_conflict > 0) reasons.push(`休暇と競合: ${drop_reasons.leave_conflict}件`)
+            if (drop_reasons?.duplicate > 0) reasons.push(`重複: ${drop_reasons.duplicate}件`)
+            if (reasons.length > 0) message += `\n除外理由:\n${reasons.join('\n')}`
+          }
+        }
+
+        alert(message)
 
         // シフト表示ページに遷移
         if (onNavigate) {
@@ -184,7 +196,7 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
       }
 
     } catch (error) {
-      console.error('Shift generation error:', error)
+      console.error('シフト生成エラー:', error)
       alert(`シフト作成中にエラーが発生しました\n${error instanceof Error ? error.message : ''}`)
     } finally {
       setIsGenerating(false)
@@ -297,22 +309,24 @@ export default function DataInputPage({ onNavigate }: DataInputPageProps) {
         })}
       </div>
 
-      {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-              <div className={`${stat.color}`}>
-                {stat.icon}
+      {/* 統計カード（管理者・開発者のみ表示） */}
+      {!isEmployee && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {statCards.map((stat, index) => (
+            <div key={index} className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+                <div className={`${stat.color}`}>
+                  {stat.icon}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
